@@ -1,0 +1,1544 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Geoprix Editor</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap">
+<style>
+/* Layout: uma coluna de celular. Barra fixa no topo com abas, lista no meio, folhas de edição em tela cheia.
+   Linguagem visual: torre de cronometragem (número grande, sigla de 3 letras, faixa da cor da equipe). */
+:root {
+  --bg: #f3f5f3; --surface: #ffffff; --fg: #16201c; --muted: #596761; --line: #dae1dd;
+  --accent: #0b6e5f; --accent-fg: #ffffff; --accent-soft: #e0f0ec;
+  --warn: #7d4a00; --warn-soft: #fbf0db; --danger: #b3261e; --danger-soft: #fbe9e7;
+  --font-ui: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Space Grotesk', 'Inter', system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1311; --surface: #171c1a; --fg: #e7eeea; --muted: #9aa8a1; --line: #2a3331;
+    --accent: #4cc4ab; --accent-fg: #052019; --accent-soft: #14302a;
+    --warn: #e6b05f; --warn-soft: #302210; --danger: #f2897f; --danger-soft: #341a17;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1311; --surface: #171c1a; --fg: #e7eeea; --muted: #9aa8a1; --line: #2a3331;
+  --accent: #4cc4ab; --accent-fg: #052019; --accent-soft: #14302a;
+  --warn: #e6b05f; --warn-soft: #302210; --danger: #f2897f; --danger-soft: #341a17;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg); font: 15px/1.4 var(--font-ui);
+  padding-block: 0 96px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.wrap { max-width: 640px; margin: 0 auto; }
+
+.bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); padding-block: 12px 8px; }
+.bar-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.brand { font: 700 20px/1.1 var(--font-display); letter-spacing: -0.01em; min-width: 0; }
+.fname { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; display: flex; align-items: center; gap: 6px; margin-top: 2px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--warn); flex: none; }
+.tabs { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; margin-top: 10px; background: var(--line); padding: 3px; border-radius: 10px; }
+.tab { border: 0; background: transparent; padding: 9px 4px; border-radius: 8px; font-weight: 500; color: var(--muted); min-height: 40px; }
+.tab[aria-selected="true"] { background: var(--surface); color: var(--fg); font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+
+.btn { border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 10px 14px; font-weight: 600; min-height: 44px; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+.btn.danger { color: var(--danger); }
+.btn.small { min-height: 36px; padding: 6px 10px; font-size: 13px; }
+.btn.ghost { background: transparent; }
+.btn[disabled] { opacity: .45; cursor: default; }
+.row-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.banner { background: var(--warn-soft); color: var(--warn); border-radius: 10px; padding: 10px 12px; margin-block: 8px; font-size: 14px; }
+.banner.info { background: var(--accent-soft); color: var(--fg); }
+.search { width: 100%; border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 10px 12px; min-height: 44px; }
+.panel-head { display: flex; gap: 8px; margin-block: 10px; }
+.panel-head .search { flex: 1; min-width: 0; }
+.count { color: var(--muted); font-size: 13px; margin-block: 4px 6px; }
+
+.list { display: flex; flex-direction: column; gap: 6px; }
+.item { position: relative; display: grid; grid-template-columns: 2.6rem 3rem minmax(0, 1fr) auto; align-items: center; gap: 10px; text-align: left; width: 100%;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px 10px 16px; min-height: 56px; overflow: hidden; }
+.item .stripe { position: absolute; inset: 0 auto 0 0; width: 5px; }
+.num { font: 700 20px/1 var(--font-display); font-variant-numeric: tabular-nums; text-align: right; }
+.tla { font: 600 13px/1 var(--font-display); letter-spacing: .06em; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 5px 0; text-align: center; }
+.who { min-width: 0; }
+.who b { display: block; font-weight: 600; overflow-wrap: anywhere; }
+.who span { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+.tail { display: flex; align-items: center; gap: 6px; }
+.badge { font-size: 11px; font-weight: 600; letter-spacing: .03em; border-radius: 6px; padding: 3px 6px; background: var(--warn-soft); color: var(--warn); white-space: nowrap; }
+.helm { display: inline-flex; border-radius: 50%; overflow: hidden; width: 18px; height: 18px; border: 1px solid var(--line); flex: none; }
+.helm i { flex: 1; }
+
+.team-item { grid-template-columns: 2.2rem minmax(0, 1fr) auto; }
+.swatch { width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--line); }
+.cardnums { font: 600 13px var(--font-display); font-variant-numeric: tabular-nums; color: var(--muted); }
+
+.group-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 16px; margin-bottom: 6px; }
+.group-h h2 { font: 700 15px/1.2 var(--font-display); margin: 0; overflow-wrap: anywhere; }
+.group-h .row-actions { gap: 4px; }
+.circ { grid-template-columns: 28px minmax(0, 1fr) auto; padding-left: 12px; cursor: pointer; }
+.circ input { width: 22px; height: 22px; accent-color: var(--accent); }
+.circ .cm { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
+
+.actionbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; background: var(--surface); border-top: 1px solid var(--line);
+  padding: 10px max(16px, env(safe-area-inset-right, 0px)) calc(10px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
+.actionbar .inner { max-width: 640px; margin: 0 auto; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.actionbar .sel { font-weight: 600; margin-right: auto; }
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-block: 10px; }
+.card h3 { margin: 0 0 8px; font: 700 15px var(--font-display); }
+.card p { margin: 6px 0; color: var(--muted); font-size: 14px; }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; font-size: 14px; }
+.kv dt { color: var(--muted); } .kv dd { margin: 0; font-variant-numeric: tabular-nums; }
+.stack { display: flex; flex-direction: column; gap: 10px; }
+textarea.out, textarea.jsonout { width: 100%; min-height: 90px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); padding: 8px; font: 12px/1.3 ui-monospace, monospace; }
+
+.sheet { position: fixed; inset: 0; z-index: 20; background: var(--bg); display: flex; flex-direction: column; }
+.sheet-head, .sheet-foot { background: var(--bg); padding: calc(12px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) 12px max(16px, env(safe-area-inset-left, 0px)); border-bottom: 1px solid var(--line); }
+.sheet-foot { border-bottom: 0; border-top: 1px solid var(--line); padding-top: 12px; padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
+.sheet-head h2 { margin: 0; font: 700 18px var(--font-display); }
+.sheet-body { flex: 1; overflow: auto; padding: 14px max(16px, env(safe-area-inset-right, 0px)) 24px max(16px, env(safe-area-inset-left, 0px)); }
+.sheet-inner { max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+.sheet-foot .inner { max-width: 640px; margin: 0 auto; display: flex; gap: 8px; }
+.sheet-foot .inner .btn { flex: 1; }
+.field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.field > label, .legend { font-size: 13px; font-weight: 600; color: var(--muted); }
+.field input[type=text], .field input[type=number], .field select { border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 10px 12px; min-height: 44px; width: 100%; }
+.field input[name=tla] { text-transform: uppercase; letter-spacing: .08em; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.stat { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr) 2.2rem; align-items: center; gap: 8px; font-size: 14px; }
+.stat input[type=range] { width: 100%; accent-color: var(--accent); }
+.filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 0; }
+.filters select { flex: 1 1 130px; min-width: 0; min-height: 44px; border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 0 10px; }
+.filters .btn { min-height: 44px; }
+.audit { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.audit li { padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); font-size: 13px; overflow-wrap: anywhere; }
+.audit li.aviso { border-left: 4px solid #c9791a; }
+.audit li.info { border-left: 4px solid var(--line); }
+.cp-list { display: grid; gap: 2px; margin-top: 8px; }
+.cp-team, .cp-driver { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 4px 6px; border-radius: 8px; }
+.cp-team { margin-top: 8px; background: var(--bg); border: 1px solid var(--line); }
+.cp-team .stripe { width: 4px; height: 24px; border-radius: 2px; flex: none; }
+.cp-driver { padding-left: 18px; }
+.cp-driver.off { opacity: .5; }
+.cp-driver .num { font-variant-numeric: tabular-nums; min-width: 2.2em; text-align: right; }
+.cp-driver .tla { font: 600 12px/1 var(--font-display); letter-spacing: .06em; min-width: 2.6em; }
+.cp-list input[type=checkbox] { width: 22px; height: 22px; flex: none; }
+.cp-list .muted, .muted { color: var(--muted, var(--fg)); opacity: .7; margin-left: auto; font-size: 12px; }
+.stat output { font: 700 15px var(--font-display); font-variant-numeric: tabular-nums; text-align: right; }
+.colors { display: flex; gap: 8px; flex-wrap: wrap; }
+.colors input[type=color] { width: 52px; height: 44px; border: 1px solid var(--line); border-radius: 8px; padding: 2px; background: var(--surface); }
+.opt { display: flex; align-items: center; gap: 10px; }
+.opt input[type=color] { width: 52px; height: 40px; border: 1px solid var(--line); border-radius: 8px; padding: 2px; background: var(--surface); }
+.opt input[type=checkbox], .switch input { width: 22px; height: 22px; accent-color: var(--accent); }
+.switch { display: flex; align-items: center; gap: 10px; font-weight: 500; }
+.choice { display: flex; gap: 10px; align-items: center; padding: 12px; border: 1px solid var(--line); background: var(--surface); border-radius: 10px; }
+.choice input { width: 20px; height: 20px; accent-color: var(--accent); }
+.err { color: var(--danger); font-size: 14px; }
+
+#toasts { position: fixed; left: 0; right: 0; bottom: calc(76px + env(safe-area-inset-bottom, 0px)); z-index: 40; display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; padding: 0 16px; }
+.toast { background: var(--fg); color: var(--bg); padding: 10px 14px; border-radius: 10px; font-size: 14px; max-width: 520px; box-shadow: 0 4px 16px rgba(0,0,0,.25); }
+.toast.err { background: var(--danger); color: #fff; }
+body.has-actionbar { padding-bottom: 170px; }
+body.has-actionbar #toasts { bottom: calc(150px + env(safe-area-inset-bottom, 0px)); }
+@media (max-width: 380px) { .stat { grid-template-columns: 6rem minmax(0, 1fr) 2rem; } .item { grid-template-columns: 2.2rem 2.8rem minmax(0, 1fr) auto; gap: 8px; } }
+@media (prefers-reduced-motion: no-preference) { .toast { animation: up .18s ease-out; } @keyframes up { from { transform: translateY(8px); opacity: 0; } } }
+</style>
+<div class="wrap" id="app"></div>
+<div id="toasts" aria-live="polite"></div>
+<script>
+/* Núcleo do Geoprix Editor: leitura/gravação do container, validação e edições.
+   Sem DOM. Segue exatamente o formato verificado nos arquivos reais:
+   'GPRX' + 0x01 + DEFLATE cru (sem cabeçalho zlib, sem trailer) com JSON UTF-8. */
+const GP = (() => {
+  'use strict';
+  const MAGIC = [0x47, 0x50, 0x52, 0x58];
+  const VERSION = 1;
+  const FORMATS = ['geoprix.circuits', 'geoprix.grid'];
+  const STATS = ['pace', 'quali', 'overtaking', 'defending', 'consistency'];
+  const STAT_LABEL = { pace: 'Ritmo', quali: 'Classificação', overtaking: 'Ultrapassagem', defending: 'Defesa', consistency: 'Consistência' };
+  // Padrões de capacete vistos nos arquivos reais, cada um com número fixo de cores.
+  const HELMET_COLOURS = { solid: 1, crown: 2, stripe: 2, bands: 3, crest: 3, quarters: 4 };
+  const STAT_MIN = 1, STAT_MAX = 99, NUM_MAX = 999;
+  const APPLE_EPOCH = 978307200;
+  const PAKO_URL = 'https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js';
+
+  class GPError extends Error {}
+  const fail = (msg) => { throw new GPError(msg); };
+  const isInt = (v) => typeof v === 'number' && Number.isInteger(v);
+  const now = () => Date.now() / 1000 - APPLE_EPOCH;
+  const clone = (o) => JSON.parse(JSON.stringify(o));
+
+  function newId() {
+    const c = globalThis.crypto;
+    if (c && c.randomUUID) return c.randomUUID().toUpperCase();
+    const b = new Uint8Array(16);
+    if (c && c.getRandomValues) c.getRandomValues(b); else for (let i = 0; i < 16; i++) b[i] = Math.floor(Math.random() * 256);
+    b[6] = (b[6] & 0x0f) | 0x40; b[8] = (b[8] & 0x3f) | 0x80;
+    const h = Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('');
+    return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`.toUpperCase();
+  }
+
+  function deepEq(a, b) {
+    if (a === b) return true;
+    if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
+    if (Array.isArray(a) !== Array.isArray(b)) return false;
+    const ka = Object.keys(a), kb = Object.keys(b);
+    if (ka.length !== kb.length) return false;
+    return ka.every((k) => Object.prototype.hasOwnProperty.call(b, k) && deepEq(a[k], b[k]));
+  }
+
+  // ------------------------------------------------------------ container --
+  async function viaStream(Ctor, u8) {
+    const cs = new Ctor('deflate-raw');
+    const w = cs.writable.getWriter();
+    w.write(u8).catch(() => {});
+    w.close().catch(() => {});
+    return new Uint8Array(await new Response(cs.readable).arrayBuffer());
+  }
+
+  function nativeOk() {
+    try { new DecompressionStream('deflate-raw'); new CompressionStream('deflate-raw'); return true; } catch (e) { return false; }
+  }
+
+  function ensurePako() {
+    if (typeof pako !== 'undefined') return Promise.resolve(pako);
+    if (typeof document === 'undefined') return Promise.reject(new Error('sem pako'));
+    return new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = PAKO_URL;
+      s.onload = () => (typeof pako !== 'undefined' ? resolve(pako) : reject(new Error('pako')));
+      s.onerror = () => reject(new Error('pako'));
+      document.head.appendChild(s);
+    });
+  }
+
+  async function inflateRaw(u8) {
+    if (nativeOk()) return viaStream(DecompressionStream, u8);
+    try { return (await ensurePako()).inflateRaw(u8); } catch (e) {
+      fail('Este navegador não sabe descompactar o arquivo. Abra a ferramenta em um Chrome ou Safari atualizado.');
+    }
+  }
+
+  async function deflateRaw(u8) {
+    if (nativeOk()) return viaStream(CompressionStream, u8);
+    try { return (await ensurePako()).deflateRaw(u8, { level: 9 }); } catch (e) {
+      fail('Este navegador não sabe compactar o arquivo. Abra a ferramenta em um Chrome ou Safari atualizado.');
+    }
+  }
+
+  async function decode(input) {
+    const b = input instanceof Uint8Array ? input : new Uint8Array(input);
+    // aceita também JSON puro (um .json renomeado para .geoprix)
+    let p0 = b[0] === 0xef && b[1] === 0xbb && b[2] === 0xbf ? 3 : 0;
+    while (p0 < b.length && (b[p0] === 0x20 || b[p0] === 0x0a || b[p0] === 0x0d || b[p0] === 0x09)) p0++;
+    if (b[p0] === 0x7b) {
+      let doc;
+      try { doc = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(b.subarray(p0))); } catch (e) { fail('O arquivo parece JSON, mas o conteúdo não é válido.'); }
+      if (!doc || !FORMATS.includes(doc.format)) fail('Tipo de conteúdo desconhecido: ' + (doc && doc.format) + '.');
+      return doc;
+    }
+    if (b.length < 6 || MAGIC.some((x, i) => b[i] !== x)) fail('Este arquivo não parece ser um .geoprix (cabeçalho GPRX não encontrado).');
+    if (b[4] !== VERSION) fail('Versão de arquivo não suportada: ' + b[4] + '.');
+    let raw;
+    try { raw = await inflateRaw(b.subarray(5)); } catch (e) {
+      if (e instanceof GPError) throw e;
+      fail('Não consegui descompactar o arquivo. Ele pode estar corrompido.');
+    }
+    let doc;
+    try { doc = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(raw)); } catch (e) { fail('O conteúdo do arquivo não é um JSON válido.'); }
+    if (!doc || !FORMATS.includes(doc.format)) fail('Tipo de conteúdo desconhecido: ' + (doc && doc.format) + '.');
+    return doc;
+  }
+
+  async function encode(doc) {
+    const raw = new TextEncoder().encode(JSON.stringify(doc));
+    const payload = await deflateRaw(raw);
+    const out = new Uint8Array(5 + payload.length);
+    out.set(MAGIC); out[4] = VERSION; out.set(payload, 5);
+    const back = await decode(out); // decodifica o que acabou de gerar e compara
+    if (!deepEq(back, JSON.parse(JSON.stringify(doc)))) fail('A verificação do arquivo gerado falhou; nada foi salvo.');
+    return out;
+  }
+
+  // ----------------------------------------------------------- validação --
+  const isGrid = (doc) => doc.format === 'geoprix.grid';
+
+  function check(doc) {
+    return isGrid(doc) ? checkGrid(doc) : checkCircuits(doc);
+  }
+
+  function checkCircuits(doc) {
+    const p = [];
+    if (!Array.isArray(doc.circuits)) return ['Faltam os circuitos do arquivo.'];
+    const ids = doc.circuits.map((c) => c.id);
+    if (new Set(ids).size !== ids.length) p.push('Há circuitos com o mesmo id.');
+    doc.circuits.forEach((c, i) => { for (const k of ['id', 'name']) if (!(k in c)) p.push(`O circuito ${i} não tem "${k}".`); });
+    const names = [];
+    for (const fo of doc.folders || []) {
+      const keys = Object.keys(fo).sort().join(',');
+      if (keys !== 'circuits,name') { p.push(`A pasta "${fo.name}" tem campos inesperados.`); continue; }
+      names.push(fo.name);
+      for (const i of fo.circuits) if (!isInt(i) || i < 0 || i >= doc.circuits.length) p.push(`A pasta "${fo.name}" aponta para um circuito que não existe (${i}).`);
+      if (new Set(fo.circuits).size !== fo.circuits.length) p.push(`A pasta "${fo.name}" lista o mesmo circuito duas vezes.`);
+    }
+    if (new Set(names).size !== names.length) p.push('Há pastas com o mesmo nome.');
+    return p;
+  }
+
+  function checkGrid(doc) {
+    const p = [];
+    for (const k of ['name', 'teams', 'drivers']) if (!(k in doc)) p.push(`Falta "${k}" no arquivo.`);
+    if (p.length) return p;
+    const ids = [];
+    for (const t of doc.teams) {
+      for (const k of ['id', 'name', 'hex', 'car']) if (!(k in t)) p.push(`A equipe "${t.name}" não tem "${k}".`);
+      const car = t.car || {};
+      for (const k of ['power', 'downforce']) if (!isInt(car[k])) p.push(`A equipe "${t.name}": car.${k} precisa ser inteiro.`);
+      ids.push(t.id);
+    }
+    const tids = new Set(ids);
+    for (const d of doc.drivers) {
+      for (const k of ['id', 'name', 'tla', 'number', 'teamID', 'entered', 'stats']) if (!(k in d)) p.push(`O piloto "${d.name}" não tem "${k}".`);
+      if (!tids.has(d.teamID)) p.push(`O piloto "${d.name}" aponta para uma equipe que não existe.`);
+      if ('number' in d && !isInt(d.number)) p.push(`O piloto "${d.name}": número precisa ser inteiro.`);
+      if ('entered' in d && typeof d.entered !== 'boolean') p.push(`O piloto "${d.name}": "entered" precisa ser verdadeiro/falso.`);
+      const st = d.stats || {};
+      if (typeof st !== 'object' || Array.isArray(st) || !STATS.every((k) => isInt(st[k]))) p.push(`O piloto "${d.name}": faltam atributos inteiros.`);
+      ids.push(d.id);
+    }
+    if (new Set(ids).size !== ids.length) p.push('Há equipes ou pilotos com o mesmo id.');
+    return p;
+  }
+
+  function notes(doc) {
+    const out = [];
+    if (isGrid(doc)) {
+      const dup = (arr) => { const m = new Map(); arr.forEach((v) => m.set(v, (m.get(v) || 0) + 1)); return [...m].filter(([, n]) => n > 1).length; };
+      const nums = dup(doc.drivers.map((d) => d.number)), tlas = dup(doc.drivers.map((d) => d.tla));
+      if (nums || tlas) out.push(`${nums} números e ${tlas} siglas repetidos. O jogo renumera os repetidos ao importar.`);
+      const used = new Set(doc.drivers.map((d) => d.teamID));
+      const empty = doc.teams.filter((t) => !used.has(t.id)).map((t) => t.name);
+      if (empty.length) out.push(`Equipes sem pilotos (não verificado no jogo): ${empty.join(', ')}.`);
+    } else {
+      const empty = (doc.folders || []).filter((f) => !f.circuits.length).map((f) => f.name);
+      if (empty.length) out.push(`Pastas vazias (não verificado no jogo): ${empty.join(', ')}.`);
+    }
+    return out;
+  }
+
+  // ---------------------------------------------------------- cores/capacete --
+  const toHex = (n) => '#' + (n >>> 0).toString(16).padStart(6, '0').toUpperCase();
+  function fromHex(s) {
+    const t = String(s || '').trim().replace(/^#/, '');
+    if (!/^[0-9a-fA-F]{6}$/.test(t)) fail(`Cor inválida: "${s}".`);
+    return parseInt(t, 16);
+  }
+
+  // 'clipped' = excesso acima de 99 (inferido dos arquivos reais): so conta quando o valor e 99.
+  const CAR = ['power', 'downforce'];
+  const wellClipped = (c, n) => Array.isArray(c) && c.length === n && c.every((x) => isInt(x) && x >= 0);
+  function excessOf(obj, keys) {
+    const c = obj && obj.clipped;
+    return keys.map((k, i) => (wellClipped(c, keys.length) && obj[k] === 99 ? c[i] : 0));
+  }
+  // zera o excesso das chaves alteradas cujo novo valor != 99; remove 'clipped' se tudo zerou
+  function settleExcess(obj, keys, changed) {
+    if (!wellClipped(obj.clipped, keys.length)) return [];
+    const msgs = [];
+    keys.forEach((k, i) => {
+      if (changed.has(k) && obj[k] !== 99 && obj.clipped[i] > 0) { msgs.push(`${STAT_LABEL[k] || k}: excesso +${obj.clipped[i]} descartado`); obj.clipped = obj.clipped.slice(); obj.clipped[i] = 0; }
+    });
+    if (msgs.length && !obj.clipped.some((x) => x)) delete obj.clipped;
+    return msgs;
+  }
+
+  // ------------------------------------------------------------- grid ops --
+  const lastNotes = [];
+  const takeNotes = () => lastNotes.splice(0);
+  const teamOf = (doc, id) => doc.teams.find((t) => t.id === id);
+  const teamName = (doc, id) => (teamOf(doc, id) || {}).name || '???';
+
+  function buildDriver(doc, draft, existing) {
+    const name = String(draft.name || '').trim();
+    if (!name) fail('O nome do piloto não pode ficar vazio.');
+    const tla = String(draft.tla || '').trim().toUpperCase();
+    if (!/^[\p{L}\p{N}]{2,3}$/u.test(tla)) fail('A sigla (TLA) precisa ter 2 ou 3 letras ou números.');
+    const number = Number(draft.number);
+    if (!isInt(number) || number < 1 || number > NUM_MAX) fail(`O número precisa ser inteiro de 1 a ${NUM_MAX}.`);
+    if (!teamOf(doc, draft.teamID)) fail('Escolha uma equipe.');
+    const stats = existing && existing.stats && typeof existing.stats === 'object' ? { ...existing.stats } : {};
+    const changed = new Set();
+    for (const k of STATS) {
+      const v = Number((draft.stats || {})[k]);
+      if (!isInt(v) || v < STAT_MIN || v > STAT_MAX) fail(`${STAT_LABEL[k]} precisa ser inteiro de ${STAT_MIN} a ${STAT_MAX}.`);
+      if (stats[k] !== v) changed.add(k);
+      stats[k] = v;
+    }
+    const dropped = settleExcess(stats, STATS, changed);
+    const d = existing ? { ...existing } : { id: newId() };
+    Object.assign(d, { name, tla, number, teamID: draft.teamID, entered: !!draft.entered, stats });
+    if (dropped.length) lastNotes.push(...dropped.map((m) => `${name}: ${m}`));
+    if (draft.helmet) {
+      const pat = draft.helmet.pattern, cols = draft.helmet.colours;
+      if (!(pat in HELMET_COLOURS)) fail('Padrão de capacete desconhecido.');
+      if (!Array.isArray(cols) || cols.length !== HELMET_COLOURS[pat] || !cols.every((c) => isInt(c) && c >= 0 && c <= 0xffffff)) fail(`O padrão "${pat}" usa ${HELMET_COLOURS[pat]} cor(es).`);
+      d.helmet = { pattern: pat, colours: [...cols] };
+    } else delete d.helmet;
+    return d;
+  }
+
+  function saveDriver(doc, draft, id) {
+    if (id) {
+      const i = doc.drivers.findIndex((d) => d.id === id);
+      if (i < 0) fail('Piloto não encontrado.');
+      doc.drivers[i] = buildDriver(doc, draft, doc.drivers[i]);
+      return `Piloto "${doc.drivers[i].name}" atualizado.`;
+    }
+    const d = buildDriver(doc, draft, null);
+    doc.drivers.push(d);
+    return `Piloto "${d.name}" adicionado.`;
+  }
+
+  function deleteDriver(doc, id) {
+    const d = doc.drivers.find((x) => x.id === id);
+    if (!d) fail('Piloto não encontrado.');
+    doc.drivers = doc.drivers.filter((x) => x.id !== id);
+    return `Piloto "${d.name}" apagado.`;
+  }
+
+  function buildTeam(draft, existing) {
+    const name = String(draft.name || '').trim();
+    if (!name) fail('O nome da equipe não pode ficar vazio.');
+    for (const k of ['power', 'downforce']) {
+      const v = Number(draft[k]);
+      if (!isInt(v) || v < STAT_MIN || v > STAT_MAX) fail(`${k === 'power' ? 'Potência' : 'Downforce'} precisa ser inteiro de ${STAT_MIN} a ${STAT_MAX}.`);
+    }
+    const t = existing ? { ...existing } : { id: newId() };
+    t.name = name;
+    t.hex = fromHex(draft.hex);
+    const opt = (key, val) => { if (val === null || val === undefined || val === '') delete t[key]; else t[key] = key === 'seed' ? String(val).trim() : fromHex(val); };
+    opt('accent', draft.accent); opt('brand', draft.brand); opt('seed', draft.seed);
+    t.car = { ...(existing ? existing.car : {}) };
+    const ch = new Set();
+    for (const k of CAR) { const v = Number(draft[k]); if (t.car[k] !== v) ch.add(k); t.car[k] = v; }
+    const dr = settleExcess(t.car, CAR, ch);
+    if (dr.length) lastNotes.push(...dr.map((m) => `${name}: ${m}`));
+    return t;
+  }
+
+  function saveTeam(doc, draft, id) {
+    if (id) {
+      const i = doc.teams.findIndex((t) => t.id === id);
+      if (i < 0) fail('Equipe não encontrada.');
+      doc.teams[i] = buildTeam(draft, doc.teams[i]);
+      return `Equipe "${doc.teams[i].name}" atualizada.`;
+    }
+    const t = buildTeam(draft, null);
+    doc.teams.push(t);
+    return `Equipe "${t.name}" adicionada.`;
+  }
+
+  function deleteTeam(doc, id, opts) {
+    const t = teamOf(doc, id);
+    if (!t) fail('Equipe não encontrada.');
+    const members = doc.drivers.filter((d) => d.teamID === id);
+    let msg = `Equipe "${t.name}" apagada`;
+    if (members.length) {
+      if (opts && opts.moveTo) {
+        if (opts.moveTo === id || !teamOf(doc, opts.moveTo)) fail('Escolha outra equipe para receber os pilotos.');
+        members.forEach((d) => { d.teamID = opts.moveTo; });
+        msg += `; ${members.length} piloto(s) movido(s) para "${teamName(doc, opts.moveTo)}"`;
+      } else if (opts && opts.withDrivers) {
+        doc.drivers = doc.drivers.filter((d) => d.teamID !== id);
+        msg += ` junto com ${members.length} piloto(s)`;
+      } else fail(`A equipe ainda tem ${members.length} piloto(s). Mova-os para outra equipe ou apague junto.`);
+    }
+    doc.teams = doc.teams.filter((x) => x.id !== id);
+    return msg + '.';
+  }
+
+  // ---------------------------------------------------------- circuit ops --
+  const membership = (doc) => {
+    const m = new Map();
+    for (const fo of doc.folders || []) for (const i of fo.circuits) if (!m.has(i)) m.set(i, fo.name);
+    return m;
+  };
+  const unfile = (doc, idxs) => {
+    const s = new Set(idxs);
+    for (const fo of doc.folders || []) fo.circuits = fo.circuits.filter((i) => !s.has(i));
+  };
+  function dropCircuits(doc, idxs) {
+    const s = new Set(idxs), remap = new Map(), kept = [];
+    doc.circuits.forEach((c, i) => { if (!s.has(i)) { remap.set(i, kept.length); kept.push(c); } });
+    doc.circuits = kept;
+    for (const fo of doc.folders || []) fo.circuits = fo.circuits.filter((i) => remap.has(i)).map((i) => remap.get(i));
+  }
+  function tidyFolders(doc, prune) {
+    if (prune) doc.folders = (doc.folders || []).filter((f) => f.circuits.length);
+    if ('folders' in doc && !doc.folders.length) delete doc.folders; // arquivos sem pastas omitem a chave
+  }
+  const cname = (doc, i) => doc.circuits[i].name;
+  const folderOf = (doc, name) => (doc.folders || []).find((f) => f.name === name);
+
+  function cleanFolderName(name) {
+    const n = String(name || '').trim();
+    if (!n) fail('O nome da pasta não pode ficar vazio.');
+    return n;
+  }
+
+  function createFolder(doc, name, idxs) {
+    name = cleanFolderName(name);
+    if (folderOf(doc, name)) fail(`Já existe uma pasta chamada "${name}".`);
+    if (!idxs.length) fail('Escolha pelo menos um circuito para a nova pasta.');
+    unfile(doc, idxs);
+    (doc.folders = doc.folders || []).push({ name, circuits: [...new Set(idxs)] });
+    tidyFolders(doc, false);
+    return `Pasta "${name}" criada com ${new Set(idxs).size} circuito(s).`;
+  }
+
+  function moveCircuits(doc, idxs, folderName) {
+    if (!idxs.length) fail('Nenhum circuito selecionado.');
+    if (folderName === null) {
+      unfile(doc, idxs); tidyFolders(doc, false);
+      return `${idxs.length} circuito(s) tirado(s) das pastas.`;
+    }
+    const fo = folderOf(doc, folderName);
+    if (!fo) fail(`A pasta "${folderName}" não existe.`);
+    unfile(doc, idxs);
+    for (const i of idxs) if (!fo.circuits.includes(i)) fo.circuits.push(i);
+    return `${idxs.length} circuito(s) movido(s) para "${folderName}".`;
+  }
+
+  function renameFolder(doc, oldName, newName) {
+    const fo = folderOf(doc, oldName);
+    if (!fo) fail('Pasta não encontrada.');
+    newName = cleanFolderName(newName);
+    if (newName !== oldName && folderOf(doc, newName)) fail(`Já existe uma pasta chamada "${newName}".`);
+    fo.name = newName;
+    return `Pasta renomeada para "${newName}".`;
+  }
+
+  function deleteFolder(doc, name, deleteCircuits) {
+    const fo = folderOf(doc, name);
+    if (!fo) fail('Pasta não encontrada.');
+    const idxs = [...fo.circuits];
+    doc.folders = doc.folders.filter((f) => f !== fo);
+    if (deleteCircuits) dropCircuits(doc, idxs);
+    tidyFolders(doc, false);
+    return deleteCircuits ? `Pasta "${name}" e seus ${idxs.length} circuito(s) apagados.` : `Pasta "${name}" apagada; ${idxs.length} circuito(s) ficaram soltos.`;
+  }
+
+  function deleteCircuits(doc, idxs, prune) {
+    if (!idxs.length) fail('Nenhum circuito selecionado.');
+    const names = idxs.map((i) => cname(doc, i));
+    dropCircuits(doc, idxs);
+    tidyFolders(doc, !!prune);
+    return names.length === 1 ? `Circuito "${names[0]}" apagado.` : `${names.length} circuitos apagados.`;
+  }
+
+  function extractCircuits(doc, idxs, opts) {
+    const sel = [...new Set(idxs)].sort((a, b) => a - b);
+    if (!sel.length) fail('Nenhum circuito selecionado.');
+    const remap = new Map(sel.map((old, n) => [old, n]));
+    const out = { format: 'geoprix.circuits', version: 1, exported: now(), circuits: sel.map((i) => clone(doc.circuits[i])) };
+    if (!(opts && opts.loose)) {
+      const folders = [];
+      for (const fo of doc.folders || []) {
+        const kept = fo.circuits.filter((i) => remap.has(i)).map((i) => remap.get(i));
+        if (kept.length) folders.push({ name: fo.name, circuits: kept });
+      }
+      if (folders.length) out.folders = folders;
+    }
+    return out;
+  }
+
+  // ---------------------------------------------------------------- juntar --
+  function mergeInto(base, other) {
+    if (base.format !== other.format) fail('Os dois arquivos são de tipos diferentes (um é de circuitos e o outro de grid).');
+    if (isGrid(base)) {
+      const r = copyFrom(base, other, { teams: other.teams.map((t) => t.id), drivers: other.drivers.map((d) => d.id) });
+      return { added: r.added, skipped: r.skipped, sameName: r.sameName, newIds: r.newIds };
+    }
+    const have = new Set(base.circuits.map((c) => c.id));
+    const remap = new Map();
+    let skipped = 0;
+    other.circuits.forEach((c, i) => {
+      if (have.has(c.id)) { skipped++; return; }
+      base.circuits.push(clone(c)); have.add(c.id); remap.set(i, base.circuits.length - 1);
+    });
+    for (const fo of other.folders || []) {
+      const idxs = fo.circuits.filter((i) => remap.has(i)).map((i) => remap.get(i));
+      if (!idxs.length) continue;
+      let target = folderOf(base, fo.name);
+      if (!target) { target = { name: fo.name, circuits: [] }; (base.folders = base.folders || []).push(target); }
+      for (const i of idxs) if (!target.circuits.includes(i)) target.circuits.push(i);
+    }
+    return { added: `${remap.size} circuito(s)`, skipped };
+  }
+
+  // junta 2+ arquivos do mesmo tipo num documento novo (os de entrada não são alterados)
+  function mergeMany(docs, name) {
+    if (!Array.isArray(docs) || docs.length < 2) fail('Escolha pelo menos 2 arquivos para juntar.');
+    const base = clone(docs[0]);
+    const reports = [];
+    for (let i = 1; i < docs.length; i++) reports.push(mergeInto(base, docs[i]));
+    if (isGrid(base) && name && name.trim()) base.name = name.trim();
+    base.exported = now();
+    const p = check(base);
+    if (p.length) fail('O resultado da junção tem problemas: ' + p[0]);
+    return { doc: base, reports };
+  }
+
+  // Dois grids podem ter o MESMO id para coisas diferentes (ex.: F2 feito a partir do F1).
+  // "Já existe" = mesmo id E mesmo nome. Mesmo id com nome diferente é outra coisa: ganha id novo.
+  const sameThing = (list, item) => list.some((x) => x.id === item.id && x.name === item.name);
+  function exists(base, kind, item) { return sameThing(kind === 'team' ? base.teams : base.drivers, item); }
+
+  // copia pilotos/equipes escolhidos de outro grid; a equipe do piloto vem junto se faltar
+  function copyFrom(base, other, sel) {
+    if (!isGrid(base) || !isGrid(other)) fail('Só dá para copiar entre dois grids de pilotos.');
+    const used = new Set([...base.teams, ...base.drivers].map((x) => x.id));
+    const tmap = new Map(); // id da equipe no outro grid -> id no grid de destino
+    let nt = 0, nd = 0, skipped = 0, newIds = 0, sameName = 0;
+    const names = new Set(base.teams.map((t) => t.name.trim().toLowerCase()));
+    const freshId = () => { let id; do id = newId(); while (used.has(id)); return id; };
+    const placeTeam = (tid) => {
+      if (tmap.has(tid)) return tmap.get(tid);
+      const t = other.teams.find((x) => x.id === tid);
+      if (!t) fail('Equipe do piloto não encontrada no outro grid.');
+      if (exists(base, 'team', t)) { tmap.set(tid, tid); return tid; }
+      const c = clone(t);
+      if (used.has(c.id)) { c.id = freshId(); newIds++; }
+      if (names.has(c.name.trim().toLowerCase())) sameName++;
+      base.teams.push(c); used.add(c.id); tmap.set(tid, c.id); nt++;
+      return c.id;
+    };
+    const inTeams = (sel && sel.teams) || [], inDrivers = (sel && sel.drivers) || [];
+    for (const id of inTeams) {
+      const t = other.teams.find((x) => x.id === id);
+      if (t) placeTeam(id);
+    }
+    for (const id of inDrivers) {
+      const d = other.drivers.find((x) => x.id === id);
+      if (!d) continue;
+      if (exists(base, 'driver', d)) { skipped++; continue; }
+      const tid = placeTeam(d.teamID);
+      const c = clone(d);
+      if (used.has(c.id)) { c.id = freshId(); newIds++; }
+      c.teamID = tid;
+      base.drivers.push(c); used.add(c.id); nd++;
+    }
+    return { added: `${nt} equipe(s) e ${nd} piloto(s)`, teams: nt, drivers: nd, skipped, newIds, sameName };
+  }
+
+  // ---------------------------------------------------- importar lista (texto) --
+  // colunas: nome; sigla; número; equipe; ritmo; classificação; ultrapassagem; defesa; consistência; inscrito
+  function parseList(text) {
+    const lines = String(text || '').split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    const rows = [];
+    lines.forEach((line, i) => {
+      const sep = line.includes('\t') ? '\t' : line.includes(';') ? ';' : ',';
+      const c = line.split(sep).map((x) => x.trim());
+      if (i === 0 && c.length >= 4 && /[A-Za-z]/.test(c[2])) return; // cabeçalho
+      rows.push({ line: i + 1, name: c[0] || '', tla: c[1] || '', number: c[2] || '', team: c[3] || '', stats: c.slice(4, 9), entered: c[9] || '' });
+    });
+    return rows;
+  }
+  const guessTla = (name) => (String(name).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z]/g, '').slice(0, 3) || 'XXX').toUpperCase();
+  function importDrivers(doc, rows, opts) {
+    if (!isGrid(doc)) fail('Só dá para importar pilotos em um grid.');
+    if (!rows.length) fail('A lista está vazia.');
+    const norm = (x) => String(x).trim().toLowerCase();
+    const used = new Set(doc.drivers.map((d) => d.number));
+    let created = 0, nd = 0;
+    for (const r of rows) {
+      const at = `Linha ${r.line}: `;
+      const wrap = (fn) => { try { return fn(); } catch (e) { if (e instanceof GPError) throw new GPError(at + e.message); throw e; } };
+      if (!r.name) fail(at + 'falta o nome.');
+      if (!r.team) fail(at + 'falta a equipe.');
+      let team = doc.teams.find((t) => norm(t.name) === norm(r.team));
+      if (!team) {
+        if (!(opts && opts.createTeams)) fail(`${at}a equipe "${r.team}" não existe neste grid. Marque "Criar equipes que faltam" ou crie a equipe antes.`);
+        team = wrap(() => buildTeam({ name: r.team, hex: '#6b7a90', power: 70, downforce: 70 }, null));
+        doc.teams.push(team); created++;
+      }
+      let number = r.number === '' ? null : Number(r.number);
+      if (number === null) { number = 1; while (used.has(number)) number++; }
+      used.add(number);
+      const stats = {};
+      STATS.forEach((k, i) => { stats[k] = r.stats[i] === undefined || r.stats[i] === '' ? 70 : Number(r.stats[i]); });
+      const en = norm(r.entered);
+      const d = wrap(() => buildDriver(doc, { name: r.name, tla: r.tla || guessTla(r.name), number, teamID: team.id, entered: !['0', 'não', 'nao', 'no', 'false', 'fora'].includes(en), stats, helmet: null }, null));
+      doc.drivers.push(d); nd++;
+    }
+    takeNotes();
+    return `${nd} piloto(s) importado(s)` + (created ? ` e ${created} equipe(s) criada(s)` : '') + '.';
+  }
+
+  // colunas: nome; cor (#RRGGBB); potência; downforce
+  function parseTeamList(text) {
+    const lines = String(text || '').split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    const rows = [];
+    lines.forEach((line, i) => {
+      const sep = line.includes('\t') ? '\t' : line.includes(';') ? ';' : ',';
+      const c = line.split(sep).map((x) => x.trim());
+      if (i === 0 && c.length >= 3 && /[A-Za-z]/.test(c[2])) return; // cabeçalho
+      rows.push({ line: i + 1, name: c[0] || '', hex: c[1] || '', power: c[2] || '', downforce: c[3] || '' });
+    });
+    return rows;
+  }
+  function importTeams(doc, rows) {
+    if (!isGrid(doc)) fail('Só dá para importar equipes em um grid.');
+    if (!rows.length) fail('A lista está vazia.');
+    const seen = new Set(doc.teams.map((t) => t.name.trim().toLowerCase()));
+    for (const r of rows) {
+      const at = `Linha ${r.line}: `;
+      if (!r.name) fail(at + 'falta o nome da equipe.');
+      if (seen.has(r.name.toLowerCase())) fail(`${at}já existe uma equipe chamada "${r.name}".`);
+      seen.add(r.name.toLowerCase());
+      let t;
+      try { t = buildTeam({ name: r.name, hex: r.hex || '#6b7a90', power: r.power === '' ? 70 : Number(r.power), downforce: r.downforce === '' ? 70 : Number(r.downforce) }, null); } catch (e) { if (e instanceof GPError) fail(at + e.message); throw e; }
+      doc.teams.push(t);
+    }
+    takeNotes();
+    return `${rows.length} equipe(s) importada(s).`;
+  }
+
+  // -------------------------------------------------------- edição em lote --
+  // op: {type:'stats', keys, mode:'set'|'add', value} | {type:'team', teamID} | {type:'entered', value}
+  //     | {type:'renumber', start} | {type:'fixdups'}
+  function bulkDrivers(doc, ids, op) {
+    if (!isGrid(doc)) fail('Só dá para editar pilotos em um grid.');
+    const set = new Set(ids);
+    const list = ids.map((id) => doc.drivers.find((d) => d.id === id)).filter(Boolean);
+    if (op.type !== 'fixdups' && !list.length) fail('Nenhum piloto para alterar.');
+    if (op.type === 'stats') {
+      const keys = (op.keys || []).filter((k) => STATS.includes(k));
+      if (!keys.length) fail('Escolha pelo menos um atributo.');
+      const v = Number(op.value);
+      if (!isInt(v)) fail('O valor precisa ser um número inteiro.');
+      if (op.mode === 'set' && (v < STAT_MIN || v > STAT_MAX)) fail(`O valor precisa ficar entre ${STAT_MIN} e ${STAT_MAX}.`);
+      let clamped = 0, dropped = 0;
+      for (const d of list) {
+        const ch = new Set();
+        for (const k of keys) {
+          let n = op.mode === 'add' ? d.stats[k] + v : v;
+          if (n < STAT_MIN) { n = STAT_MIN; clamped++; } if (n > STAT_MAX) { n = STAT_MAX; clamped++; }
+          if (n !== d.stats[k]) ch.add(k);
+          d.stats[k] = n;
+        }
+        dropped += settleExcess(d.stats, STATS, ch).length;
+      }
+      return `${keys.length} atributo(s) alterado(s) em ${list.length} piloto(s)` + (dropped ? `; ${dropped} excesso(s) acima de 99 descartado(s)` : '') + (clamped ? ` (${clamped} valor(es) passaram do limite ${STAT_MIN}-${STAT_MAX} e foram ajustados)` : '') + '.';
+    }
+    if (op.type === 'team') {
+      if (!teamOf(doc, op.teamID)) fail('Escolha uma equipe.');
+      list.forEach((d) => { d.teamID = op.teamID; });
+      return `${list.length} piloto(s) movido(s) para "${teamName(doc, op.teamID)}".`;
+    }
+    if (op.type === 'entered') {
+      list.forEach((d) => { d.entered = !!op.value; });
+      return `${list.length} piloto(s) marcado(s) como ${op.value ? 'inscritos' : 'fora'}.`;
+    }
+    if (op.type === 'renumber') {
+      const start = Number(op.start);
+      if (!isInt(start) || start < 1 || start > NUM_MAX) fail(`O número inicial precisa ser de 1 a ${NUM_MAX}.`);
+      const used = new Set(doc.drivers.filter((d) => !set.has(d.id)).map((d) => d.number));
+      let n = start;
+      for (const d of list) {
+        while (used.has(n)) n++;
+        if (n > NUM_MAX) fail(`Não há números livres suficientes até ${NUM_MAX}.`);
+        d.number = n; used.add(n); n++;
+      }
+      return `${list.length} piloto(s) renumerado(s) a partir de ${start}, pulando números já usados por outros pilotos.`;
+    }
+    if (op.type === 'helmet') {
+      if (!op.pattern) { list.forEach((d) => { delete d.helmet; }); return `Capacete removido de ${list.length} piloto(s).`; }
+      const n = HELMET_COLOURS[op.pattern];
+      if (!n) fail('Padrão de capacete desconhecido.');
+      let custom = null;
+      if (!op.fromTeam) {
+        custom = op.colours;
+        if (!Array.isArray(custom) || custom.length !== n || !custom.every((c) => isInt(c) && c >= 0 && c <= 0xffffff)) fail(`O padrão "${op.pattern}" usa ${n} cor(es).`);
+      }
+      for (const d of list) {
+        let cols = custom && [...custom];
+        if (!cols) {
+          const t = teamOf(doc, d.teamID) || {};
+          const a = t.accent !== undefined ? t.accent : 0xffffff, b = t.brand !== undefined ? t.brand : 0x111111;
+          cols = [t.hex !== undefined ? t.hex : 0x888888, a, b, a].slice(0, n);
+          if (n === 4) cols = [cols[0], a, cols[0], a];
+          if (n === 3) cols = [cols[0], a, b];
+        }
+        d.helmet = { pattern: op.pattern, colours: cols };
+      }
+      return `Capacete "${op.pattern}" aplicado a ${list.length} piloto(s)` + (op.fromTeam ? ' com as cores da equipe.' : '.');
+    }
+    if (op.type === 'fixdups') {
+      const seen = new Set(); const used = new Set(doc.drivers.map((d) => d.number)); let fixed = 0, n = 100;
+      for (const d of doc.drivers) {
+        if (!seen.has(d.number)) { seen.add(d.number); continue; }
+        while (used.has(n)) n++;
+        if (n > NUM_MAX) fail(`Não há números livres suficientes até ${NUM_MAX}.`);
+        d.number = n; used.add(n); seen.add(n); fixed++;
+      }
+      return fixed ? `${fixed} número(s) repetido(s) trocado(s) por números livres a partir de 100.` : 'Não havia números repetidos.';
+    }
+    fail('Ação desconhecida.');
+  }
+
+  // ------------------------------------------------------------ verificador --
+  function audit(doc) {
+    if (!isGrid(doc)) return [];
+    const out = [];
+    const group = (arr, key) => { const m = new Map(); arr.forEach((x) => { const k = key(x); m.set(k, [...(m.get(k) || []), x]); }); return [...m].filter(([, v]) => v.length > 1); };
+    for (const [n, ds] of group(doc.drivers, (d) => d.number)) out.push({ level: 'aviso', text: `Número ${n} repetido: ${ds.map((d) => d.name).join(', ')}.` });
+    for (const [t, ds] of group(doc.drivers, (d) => d.tla)) out.push({ level: 'aviso', text: `Sigla ${t} repetida: ${ds.map((d) => d.name).join(', ')}.` });
+    for (const [n, ds] of group(doc.drivers, (d) => d.name.trim().toLowerCase())) out.push({ level: 'aviso', text: `Nome de piloto repetido: "${ds[0].name}" (${ds.length}x).` });
+    for (const [n, ts] of group(doc.teams, (t) => t.name.trim().toLowerCase())) out.push({ level: 'aviso', text: `Nome de equipe repetido: "${ts[0].name}" (${ts.length}x).` });
+    for (const t of doc.teams) if (!doc.drivers.some((d) => d.teamID === t.id)) out.push({ level: 'info', text: `A equipe "${t.name}" não tem pilotos.` });
+    for (const d of doc.drivers) {
+      const low = STATS.filter((k) => d.stats[k] < 20), tla = String(d.tla);
+      if (low.length) out.push({ level: 'info', text: `${d.name}: atributo muito baixo (${low.map((k) => STAT_LABEL[k] + ' ' + d.stats[k]).join(', ')}).` });
+      if (tla.length < 2 || tla.length > 3) out.push({ level: 'aviso', text: `${d.name}: sigla "${tla}" fora do padrão de 2 a 3 caracteres.` });
+      if (d.stats.clipped !== undefined && !wellClipped(d.stats.clipped, STATS.length)) out.push({ level: 'info', text: `${d.name}: campo "clipped" em formato inesperado (preservado sem mudanças).` });
+    }
+    for (const t of doc.teams) if (t.car.clipped !== undefined && !wellClipped(t.car.clipped, CAR.length)) out.push({ level: 'info', text: `${t.name}: campo "clipped" do carro em formato inesperado (preservado sem mudanças).` });
+    const nh = doc.drivers.filter((d) => !d.helmet).length;
+    if (nh) out.push({ level: 'info', text: `${nh} piloto(s) sem capacete definido (o capacete é opcional).` });
+    const off = doc.drivers.filter((d) => !d.entered).length;
+    if (off) out.push({ level: 'info', text: `${off} piloto(s) marcados como fora (não inscritos).` });
+    return out;
+  }
+
+  // ------------------------------------------------------------------- csv --
+  const cell = (v) => String(v).replace(/[;\r\n\t]+/g, ' ').trim();
+  function toCsv(doc, kind, sep) {
+    sep = sep || ';';
+    if (!isGrid(doc)) fail('Só dá para exportar lista de um grid.');
+    if (kind === 'teams') {
+      const rows = [['Nome', 'Cor', 'Potência', 'Downforce'], ...doc.teams.map((t) => [t.name, toHex(t.hex), t.car.power, t.car.downforce])];
+      return rows.map((r) => r.map(cell).join(sep)).join('\n') + '\n';
+    }
+    const rows = [['Nome', 'Sigla', 'Número', 'Equipe', 'Ritmo', 'Classificação', 'Ultrapassagem', 'Defesa', 'Consistência', 'Inscrito'],
+      ...doc.drivers.map((d) => [d.name, d.tla, d.number, teamName(doc, d.teamID), ...STATS.map((k) => d.stats[k]), d.entered ? 'sim' : 'não'])];
+    return rows.map((r) => r.map(cell).join(sep)).join('\n') + '\n';
+  }
+
+  const toJson = (doc) => JSON.stringify({ ...doc, exported: now() });
+
+  function sampleGrid() {
+    const T = (n, id, hex, p, d) => ({ id, name: n, hex, car: { power: p, downforce: d } });
+    const teams = [
+      T('Equipe Azul (exemplo)', 'EX000000-0000-4000-8000-0000000000A1', 0x2f5bea, 88, 84),
+      T('Equipe Vermelha (exemplo)', 'EX000000-0000-4000-8000-0000000000A2', 0xd8402a, 91, 80),
+      T('Equipe Verde (exemplo)', 'EX000000-0000-4000-8000-0000000000A3', 0x1f9d6b, 80, 90),
+    ];
+    const D = (n, name, tla, ti, s, h) => ({ id: `EX000000-0000-4000-8000-0000000000B${n}`, name, tla, number: n * 11, teamID: teams[ti].id, entered: true, stats: { pace: s, quali: s, overtaking: s - 4, defending: s - 2, consistency: s - 6 }, helmet: h });
+    const doc = {
+      format: 'geoprix.grid', version: 1, exported: now(), name: 'Grid de exemplo',
+      teams,
+      drivers: [
+        D(1, 'Piloto Um', 'PUM', 0, 90, { pattern: 'solid', colours: [0x2f5bea] }),
+        D(2, 'Piloto Dois', 'PDO', 0, 84, { pattern: 'stripe', colours: [0x2f5bea, 0xffffff] }),
+        D(3, 'Piloto Três', 'PTR', 1, 88, { pattern: 'crown', colours: [0xd8402a, 0x111111] }),
+        D(4, 'Piloto Quatro', 'PQU', 1, 79, { pattern: 'bands', colours: [0xd8402a, 0xffffff, 0x111111] }),
+        D(5, 'Piloto Cinco', 'PCI', 2, 86, { pattern: 'quarters', colours: [0x1f9d6b, 0xffffff, 0x1f9d6b, 0xffffff] }),
+        D(6, 'Piloto Seis', 'PSE', 2, 75, null),
+      ],
+    };
+    doc.drivers.forEach((d) => { if (!d.helmet) delete d.helmet; });
+    doc.teams.forEach((t, i) => { t.id = `EX000000-0000-4000-8000-0000000000A${i + 1}`; });
+    return doc;
+  }
+
+  return {
+    GPError, STATS, CAR, excessOf, takeNotes, STAT_LABEL, HELMET_COLOURS, STAT_MIN, STAT_MAX, NUM_MAX,
+    newId, deepEq, clone, now, decode, encode, check, notes, isGrid, toHex, fromHex, teamOf, teamName,
+    saveDriver, deleteDriver, saveTeam, deleteTeam,
+    membership, createFolder, moveCircuits, renameFolder, deleteFolder, deleteCircuits, extractCircuits,
+    mergeInto, mergeMany, copyFrom, exists, parseTeamList, importTeams, bulkDrivers, audit, toCsv, toJson, parseList, importDrivers, sampleGrid,
+  };
+})();
+
+</script>
+<script>
+(() => {
+  'use strict';
+  const app = document.getElementById('app');
+  const toasts = document.getElementById('toasts');
+
+  // ---------------------------------------------------------------- helpers --
+  function h(tag, props, ...kids) {
+    const el = document.createElement(tag);
+    for (const [k, v] of Object.entries(props || {})) {
+      if (v === null || v === undefined || v === false) continue;
+      if (k === 'class') el.className = v;
+      else if (k === 'text') el.textContent = v;
+      else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+      else if (k === 'value' || k === 'checked' || k === 'disabled' || k === 'selected') el[k] = v;
+      else el.setAttribute(k, v === true ? '' : v);
+    }
+    for (const kid of kids.flat()) if (kid !== null && kid !== undefined && kid !== false) el.append(kid.nodeType ? kid : document.createTextNode(String(kid)));
+    return el;
+  }
+  const caps = {};
+  async function cap(name) {
+    if (!(name in caps)) {
+      try { caps[name] = window.claude && window.claude.use ? await window.claude.use(name) : null; } catch (e) { caps[name] = null; }
+    }
+    return caps[name];
+  }
+  function toast(msg, kind) {
+    const t = h('div', { class: 'toast' + (kind === 'err' ? ' err' : ''), role: kind === 'err' ? 'alert' : 'status', text: msg });
+    toasts.append(t);
+    setTimeout(() => t.remove(), kind === 'err' ? 7000 : 3500);
+  }
+  const fmtKm = (m) => (typeof m === 'number' ? (m / 1000).toFixed(2).replace('.', ',') + ' km' : '');
+  const norm = (s) => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+
+  // ------------------------------------------------------------------ state --
+  const state = {
+    doc: GP.sampleGrid(), fileName: 'exemplo', sample: true, tab: 'drivers', q: '', teamF: '', sortK: '', desc: false,
+    history: [], version: 0, savedVersion: 0, sel: new Set(), sheet: null, fallback: null,
+  };
+  const dirty = () => state.version !== state.savedVersion;
+  const isGrid = () => GP.isGrid(state.doc);
+  const stem = () => state.fileName.replace(/\.geoprix(\.txt)?$/i, '').replace(/[\\/:*?"<>|]+/g, '_') || 'grid';
+
+  // Os circuitos nunca são alterados; só a lista e as pastas. O snapshot copia só isso.
+  function snap(doc) {
+    if (GP.isGrid(doc)) return GP.clone(doc);
+    const s = { ...doc, circuits: doc.circuits.slice() };
+    if (doc.folders) s.folders = GP.clone(doc.folders); else delete s.folders;
+    return s;
+  }
+  function apply(fn) {
+    const before = snap(state.doc);
+    try {
+      let msg = fn(state.doc);
+      const nt = GP.takeNotes();
+      if (msg && nt.length) msg += ' Aviso: ' + nt.join('; ') + '.';
+      const problems = GP.check(state.doc);
+      if (problems.length) throw new GP.GPError(problems[0]);
+      state.history.push({ s: before, v: state.version });
+      if (state.history.length > 20) state.history.shift();
+      state.version++;
+      if (msg) toast(msg);
+      pruneSel();
+      render();
+      return true;
+    } catch (e) {
+      state.doc = before;
+      toast(e instanceof GP.GPError ? e.message : 'Algo deu errado: ' + e.message, 'err');
+      return false;
+    }
+  }
+  function undo() {
+    const last = state.history.pop();
+    if (!last) return;
+    state.doc = last.s; state.version = last.v;
+    pruneSel(); render(); toast('Última alteração desfeita.');
+  }
+  function pruneSel() {
+    if (isGrid()) { state.sel.clear(); return; }
+    const ids = new Set(state.doc.circuits.map((c) => c.id));
+    for (const id of [...state.sel]) if (!ids.has(id)) state.sel.delete(id);
+  }
+  const selIdx = () => state.doc.circuits.map((c, i) => (state.sel.has(c.id) ? i : -1)).filter((i) => i >= 0);
+
+  // ----------------------------------------------------------- abrir/salvar --
+  async function openFile(file) {
+    if (dirty() && !(await confirmSheet('Abrir outro arquivo?', 'Você tem alterações que não foram salvas. Elas serão perdidas.', 'Abrir mesmo assim'))) return;
+    try {
+      const doc = await GP.decode(await file.arrayBuffer());
+      const problems = GP.check(doc);
+      if (problems.length) throw new GP.GPError('O arquivo abriu, mas tem problemas e não é seguro editar: ' + problems.slice(0, 2).join(' '));
+      Object.assign(state, { doc, fileName: file.name, sample: false, history: [], version: 0, savedVersion: 0, sel: new Set(), q: '', teamF: '', sortK: '', desc: false, fallback: null });
+      state.tab = GP.isGrid(doc) ? 'drivers' : 'circuits';
+      render(); window.scrollTo(0, 0);
+      toast(`Aberto: ${GP.isGrid(doc) ? doc.drivers.length + ' pilotos' : doc.circuits.length + ' circuitos'}.`);
+    } catch (e) { toast(e instanceof GP.GPError ? e.message : 'Não consegui abrir o arquivo: ' + e.message, 'err'); }
+  }
+  async function mergeFiles(files) {
+    for (const f of files) {
+      let other;
+      try { other = await GP.decode(await f.arrayBuffer()); const p = GP.check(other); if (p.length) throw new GP.GPError(`"${f.name}" tem problemas: ${p[0]}`); } catch (e) { toast(e.message, 'err'); continue; }
+      let res;
+      const ok = apply((d) => { res = GP.mergeInto(d, other); });
+      if (ok) toast(`${f.name}: adicionados ${res.added}` + (res.skipped ? `; ${res.skipped} já existiam e foram ignorados` : '') + (res.sameName ? `; ${res.sameName} equipe(s) com o mesmo nome de outra já existente (ficaram as duas)` : '') + (res.newIds ? `; ${res.newIds} item(ns) ganharam id novo (id repetido de outra coisa)` : '') + '.');
+    }
+  }
+  // junta 2+ arquivos num arquivo novo (os originais não mudam)
+  async function mergeNew(files) {
+    if (files.length < 2) return toast('Escolha pelo menos 2 arquivos.', 'err');
+    if (dirty() && !(await confirmSheet('Substituir o que está aberto?', 'Você tem alterações que não foram salvas. Elas serão perdidas.', 'Continuar'))) return;
+    const docs = [];
+    for (const f of files) {
+      try { const d = await GP.decode(await f.arrayBuffer()); const p = GP.check(d); if (p.length) throw new GP.GPError(`"${f.name}" tem problemas: ${p[0]}`); docs.push(d); } catch (e) { return toast(e instanceof GP.GPError ? e.message : `Não consegui abrir "${f.name}": ${e.message}`, 'err'); }
+    }
+    if (new Set(docs.map((d) => d.format)).size > 1) return toast('Os arquivos são de tipos diferentes (circuitos e grid). Junte só arquivos do mesmo tipo.', 'err');
+    let name = '';
+    if (GP.isGrid(docs[0])) {
+      name = await textSheet('Nome do grid novo', 'Nome do grid', docs.map((d) => d.name).join(' + ').slice(0, 60), 'Juntar');
+      if (name === null || name === undefined) return;
+    }
+    let res;
+    try { res = GP.mergeMany(docs, name); } catch (e) { return toast(e.message, 'err'); }
+    const base = files[0].name.replace(/\.geoprix(\.txt)?$/i, '');
+    Object.assign(state, { doc: res.doc, fileName: base + '_juntos.geoprix', sample: false, history: [], version: 1, savedVersion: 0, sel: new Set(), q: '', teamF: '', sortK: '', desc: false, fallback: null, tab: GP.isGrid(res.doc) ? 'drivers' : 'circuits' });
+    render(); window.scrollTo(0, 0);
+    const skipped = res.reports.reduce((n, r) => n + r.skipped, 0), same = res.reports.reduce((n, r) => n + (r.sameName || 0), 0);
+    toast(`${files.length} arquivos juntos` + (skipped ? `; ${skipped} item(ns) repetido(s) ignorado(s)` : '') + (same ? `; ${same} equipe(s) com nome repetido (ficaram as duas)` : '') + '. Salve na aba Arquivo.');
+  }
+
+  // copiar pilotos/equipes escolhidos de outro grid
+  async function copyFromFile(file) {
+    let other;
+    try { other = await GP.decode(await file.arrayBuffer()); const p = GP.check(other); if (p.length) throw new GP.GPError(`"${file.name}" tem problemas: ${p[0]}`); if (!GP.isGrid(other)) throw new GP.GPError('Esse arquivo é de circuitos, não de pilotos.'); } catch (e) { return toast(e instanceof GP.GPError ? e.message : 'Não consegui abrir o arquivo: ' + e.message, 'err'); }
+    copySheet(other, file.name);
+  }
+  function copySheet(other, fname) {
+    const hasT = (t) => GP.exists(state.doc, 'team', t), hasD = (d) => GP.exists(state.doc, 'driver', d);
+    const dSel = new Set(), tSel = new Set();
+    let q = '';
+    const summary = h('div', { class: 'count', 'aria-live': 'polite' });
+    const list = h('div', { class: 'cp-list' });
+    const copyBtn = h('button', { class: 'btn primary', text: 'Copiar' });
+    const upd = () => {
+      const newTeams = new Set([...tSel].filter((id) => !hasT(other.teams.find((x) => x.id === id))));
+      for (const id of dSel) { const d = other.drivers.find((x) => x.id === id); const t = d && other.teams.find((x) => x.id === d.teamID); if (t && !hasT(t)) newTeams.add(t.id); }
+      summary.textContent = dSel.size || tSel.size ? `${dSel.size} piloto(s) e ${newTeams.size} equipe(s) nova(s) serão copiados` : 'Marque o que quer copiar';
+      copyBtn.disabled = !(dSel.size || tSel.size);
+    };
+    const fill = () => {
+      const nq = norm(q); list.replaceChildren();
+      for (const t of other.teams) {
+        const ds = other.drivers.filter((d) => d.teamID === t.id);
+        const rows = ds.filter((d) => !nq || norm(d.name + ' ' + d.tla + ' ' + t.name).includes(nq));
+        if (nq && !rows.length && !norm(t.name).includes(nq)) continue;
+        const tHave = hasT(t);
+        const tcb = h('input', { type: 'checkbox', checked: tSel.has(t.id), 'aria-label': `Equipe ${t.name} inteira`, onchange: (e) => {
+          if (e.target.checked) { tSel.add(t.id); ds.forEach((d) => { if (!hasD(d)) dSel.add(d.id); }); } else { tSel.delete(t.id); ds.forEach((d) => dSel.delete(d.id)); }
+          fill(); upd(); } });
+        list.append(h('label', { class: 'cp-team' }, tcb, h('span', { class: 'stripe', style: 'background:' + GP.toHex(t.hex) }), h('b', { text: t.name }), h('span', { class: 'muted', text: tHave ? 'já existe aqui' : `${ds.length} piloto(s)` })));
+        for (const d of rows) {
+          const dHave = hasD(d);
+          const cb = h('input', { type: 'checkbox', checked: dSel.has(d.id), disabled: dHave, 'aria-label': d.name, onchange: (e) => { if (e.target.checked) dSel.add(d.id); else dSel.delete(d.id); upd(); } });
+          list.append(h('label', { class: 'cp-driver' + (dHave ? ' off' : '') }, cb, h('span', { class: 'num', text: d.number }), h('span', { class: 'tla', text: d.tla }), h('span', { text: d.name }), dHave ? h('span', { class: 'muted', text: 'já existe' }) : null));
+        }
+      }
+      if (!list.children.length) list.append(h('div', { class: 'banner info', text: 'Nada encontrado.' }));
+    };
+    const search = h('input', { class: 'search', type: 'search', id: 'cp-q', placeholder: 'Buscar piloto ou equipe', 'aria-label': 'Buscar', oninput: (e) => { q = e.target.value; fill(); } });
+    copyBtn.addEventListener('click', () => {
+      const sel = { drivers: [...dSel], teams: [...tSel] }; let res;
+      closeSheet();
+      const ok = apply((d) => { res = GP.copyFrom(d, other, sel); return `Copiado: ${res.added}` + (res.skipped ? `; ${res.skipped} já existiam` : '') + (res.newIds ? `; ${res.newIds} receberam id novo porque outro item daqui usava o mesmo id` : '') + '.'; });
+      if (ok) { state.tab = 'drivers'; render(); }
+    });
+    fill(); upd();
+    openSheet(`Copiar de "${other.name}"`, [h('p', { class: 'muted', text: `Arquivo: ${fname}. Marcar uma equipe marca todos os pilotos dela; o piloto leva a equipe junto se ela ainda não existir aqui.` }), search, summary, list],
+      [h('button', { class: 'btn', onclick: closeSheet, text: 'Cancelar' }), copyBtn]);
+  }
+  function importSheet() {
+    const example = 'Nome;Sigla;Número;Equipe;Ritmo;Classif.;Ultrap.;Defesa;Consist.\nAna Souza;ASO;7;Equipe Azul (exemplo);88;85;80;78;82\nBruno Lima;;;Equipe Nova;75;75;70;70;72';
+    const ta = h('textarea', { class: 'out', id: 'imp-text', rows: '8', placeholder: example, 'aria-label': 'Lista de pilotos', spellcheck: 'false' });
+    const create = h('input', { type: 'checkbox', id: 'imp-create' });
+    const info = h('div', { class: 'count', 'aria-live': 'polite' });
+    const err = h('div', { class: 'err', role: 'alert' });
+    const upd = () => { const n = GP.parseList(ta.value).length; info.textContent = n ? `${n} linha(s) reconhecida(s)` : 'Cole a lista acima'; err.textContent = ''; };
+    ta.addEventListener('input', upd); upd();
+    const go = h('button', { class: 'btn primary', text: 'Importar' });
+    go.addEventListener('click', () => {
+      const rows = GP.parseList(ta.value);
+      try { const t = GP.clone(state.doc); GP.importDrivers(t, rows, { createTeams: create.checked }); } catch (e) { err.textContent = e.message; return; }
+      closeSheet(); const ok = apply((d) => GP.importDrivers(d, rows, { createTeams: create.checked })); if (ok) { state.tab = 'drivers'; render(); }
+    });
+    openSheet('Importar lista de pilotos', [
+      h('p', { class: 'muted', style: 'margin-left:0', text: 'Uma linha por piloto, separando as colunas por ponto e vírgula, vírgula ou Tab (colar de planilha funciona). Ordem: nome; sigla; número; equipe; ritmo; classificação; ultrapassagem; defesa; consistência; inscrito (sim/não). Só nome e equipe são obrigatórios: sigla e número vazios são preenchidos, atributos vazios ficam em 70. A primeira linha pode ser um cabeçalho.' }),
+      ta, h('div', { class: 'cp-driver' }, create, h('label', { for: 'imp-create', text: 'Criar equipes que faltam' })),
+      h('button', { class: 'btn small', onclick: () => { ta.value = example; upd(); }, text: 'Colar exemplo' }), info, err,
+    ], [h('button', { class: 'btn', onclick: closeSheet, text: 'Cancelar' }), go]);
+  }
+  function auditSheet() {
+    const items = GP.audit(state.doc);
+    const body = items.length ? [h('p', { class: 'muted', style: 'margin-left:0', text: `${items.length} ponto(s) encontrado(s). Nada foi alterado.` }), h('ul', { class: 'audit' }, items.map((i) => h('li', { class: i.level }, h('b', { text: i.level === 'aviso' ? 'Aviso' : 'Info' }), ' ' + i.text)))]
+      : [h('div', { class: 'banner info', text: 'Nenhum problema encontrado.' })];
+    openSheet('Verificação do grid', body, [h('button', { class: 'btn', onclick: closeSheet, text: 'Fechar' })]);
+  }
+  async function csvSheet(kind) {
+    const text = GP.toCsv(state.doc, kind), tsv = GP.toCsv(state.doc, kind, '\t'), name = stem() + (kind === 'teams' ? '_equipes' : '_pilotos');
+    const ta = h('textarea', { class: 'out', readonly: true, rows: '10', 'aria-label': 'Lista', onfocus: (e) => e.target.select() }); ta.value = text;
+    openSheet(kind === 'teams' ? 'Lista de equipes' : 'Lista de pilotos', [h('p', { class: 'muted', style: 'margin-left:0', text: '"Copiar para planilha" cola direto no Google Planilhas ou Excel, já em colunas (A, B, C…) e linhas (1, 2, 3…). "Copiar" usa ponto e vírgula, bom para guardar como texto.' }), ta], [
+      h('button', { class: 'btn', onclick: closeSheet, text: 'Fechar' }),
+      h('button', { class: 'btn', text: 'Baixar .csv', onclick: async () => { const dl = await cap('downloads'); if (!dl) return toast('Este lugar não baixa arquivos. Use Copiar.', 'err'); try { await dl.save({ filename: name + '.csv', data: new TextEncoder().encode('\ufeff' + text) }); toast('Arquivo salvo.'); } catch (e) { toast(e && e.code === 'declined' ? 'Cancelado.' : 'Não consegui baixar. Use Copiar.', 'err'); } } }),
+      h('button', { class: 'btn', text: 'Copiar', onclick: async () => { try { await navigator.clipboard.writeText(text); toast('Copiado.'); } catch (e) { ta.focus(); ta.select(); toast('Selecionei o texto: use Copiar do seu teclado.'); } } }),
+      h('button', { class: 'btn primary', text: 'Copiar para planilha', onclick: async () => { try { await navigator.clipboard.writeText(tsv); toast('Copiado: cole na planilha.'); } catch (e) { ta.value = tsv; ta.focus(); ta.select(); toast('Selecionei o texto (com Tab): use Copiar do seu teclado.'); } } }),
+    ]);
+  }
+  function importTeamsSheet() {
+    const example = 'Nome;Cor;Potência;Downforce\nEquipe Alfa;#E8112D;85;80\nEquipe Beta;#2F5BEA;78;82';
+    const ta = h('textarea', { class: 'out', id: 'impt-text', rows: '7', placeholder: example, 'aria-label': 'Lista de equipes', spellcheck: 'false' });
+    const info = h('div', { class: 'count', 'aria-live': 'polite' }); const err = h('div', { class: 'err', role: 'alert' });
+    const upd = () => { const n = GP.parseTeamList(ta.value).length; info.textContent = n ? `${n} linha(s) reconhecida(s)` : 'Cole a lista acima'; err.textContent = ''; };
+    ta.addEventListener('input', upd); upd();
+    const go = h('button', { class: 'btn primary', text: 'Importar' });
+    go.addEventListener('click', () => {
+      const rows = GP.parseTeamList(ta.value);
+      try { GP.importTeams(GP.clone(state.doc), rows); GP.takeNotes(); } catch (e) { GP.takeNotes(); err.textContent = e.message; return; }
+      closeSheet(); const ok = apply((d) => GP.importTeams(d, rows)); if (ok) { state.tab = 'teams'; render(); }
+    });
+    openSheet('Importar lista de equipes', [
+      h('p', { class: 'muted', style: 'margin-left:0', text: 'Uma linha por equipe: nome; cor (#RRGGBB); potência; downforce. Separe por ponto e vírgula, vírgula ou Tab. Só o nome é obrigatório (cor padrão cinza, carro 70/70). Equipes com nome que já existe são recusadas. A primeira linha pode ser cabeçalho.' }),
+      ta, h('button', { class: 'btn small', onclick: () => { ta.value = example; upd(); }, text: 'Colar exemplo' }), info, err,
+    ], [h('button', { class: 'btn', onclick: closeSheet, text: 'Cancelar' }), go]);
+  }
+  function b64(bytes) { let s = ''; for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000)); return btoa(s); }
+
+  async function saveDoc(doc, name, whole) {
+    const problems = GP.check(doc);
+    if (problems.length) return toast(problems[0], 'err');
+    let bytes;
+    try { bytes = await GP.encode({ ...doc, exported: GP.now() }); } catch (e) { return toast(e.message, 'err'); }
+    const dl = await cap('downloads');
+    const done = (note) => { if (whole) { state.savedVersion = state.version; render(); } toast(note || 'Arquivo salvo.'); };
+    const fallback = (why) => { state.fallback = { name, text: b64(bytes) }; state.tab = 'file'; render(); toast(why, 'err'); };
+    if (!dl) return fallback('Este lugar não permite salvar arquivos. Use "Copiar como texto" abaixo.');
+    try { await dl.save({ filename: name + '.geoprix', data: bytes }); return done(); } catch (e) {
+      if (e && e.code === 'declined') return toast('Salvamento cancelado.');
+      if (e && e.code === 'host_unavailable') return fallback('Este app não salva arquivos. Use "Copiar como texto" abaixo.');
+      if (!e || e.code !== 'rejected_extension') return fallback('Não consegui salvar (' + ((e && (e.code || e.message)) || 'erro') + '). Use "Copiar como texto" abaixo.');
+    }
+    try { await dl.save({ filename: name + '.geoprix.txt', data: bytes }); done(`Salvo como "${name}.geoprix.txt". Renomeie tirando o ".txt" do final.`); } catch (e) {
+      if (e && e.code === 'declined') return toast('Salvamento cancelado.');
+      fallback('Não consegui salvar (' + ((e && (e.code || e.message)) || 'erro') + '). Use "Copiar como texto" abaixo.');
+    }
+  }
+
+  // ------------------------------------------------------------------ sheets --
+  function closeSheet() { if (state.sheet) { state.sheet.remove(); state.sheet = null; document.body.style.overflow = ''; } }
+  function openSheet(title, bodyNodes, footNodes) {
+    closeSheet();
+    const sheet = h('div', { class: 'sheet', role: 'dialog', 'aria-modal': 'true', 'aria-label': title },
+      h('div', { class: 'sheet-head' }, h('div', { class: 'sheet-inner' }, h('h2', { text: title }))),
+      h('div', { class: 'sheet-body' }, h('div', { class: 'sheet-inner' }, bodyNodes)),
+      h('div', { class: 'sheet-foot' }, h('div', { class: 'inner' }, footNodes)));
+    document.body.append(sheet); document.body.style.overflow = 'hidden'; state.sheet = sheet;
+    const first = sheet.querySelector('input[type=text], select'); if (first && !('ontouchstart' in window)) first.focus();
+    return sheet;
+  }
+  function confirmSheet(title, text, yes, danger) {
+    return new Promise((resolve) => {
+      const done = (v) => { closeSheet(); resolve(v); };
+      openSheet(title, [h('p', { text })], [
+        h('button', { class: 'btn', onclick: () => done(false), text: 'Cancelar' }),
+        h('button', { class: 'btn ' + (danger ? 'danger' : 'primary'), onclick: () => done(true), text: yes }),
+      ]);
+    });
+  }
+  function textSheet(title, label, value, yes) {
+    return new Promise((resolve) => {
+      const input = h('input', { type: 'text', id: 'ts-input', value, maxlength: '60' });
+      const err = h('div', { class: 'err', role: 'alert' });
+      const go = () => { const v = input.value.trim(); if (!v) { err.textContent = 'Digite um nome.'; return; } closeSheet(); resolve(v); };
+      input.addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
+      openSheet(title, [h('div', { class: 'field' }, h('label', { for: 'ts-input', text: label }), input, err)], [
+        h('button', { class: 'btn', onclick: () => { closeSheet(); resolve(null); }, text: 'Cancelar' }),
+        h('button', { class: 'btn primary', onclick: go, text: yes }),
+      ]);
+    });
+  }
+
+  // --------------------------------------------------------------- pilotos ---
+  function helmetNode(hm) {
+    if (!hm) return null;
+    return h('span', { class: 'helm', 'aria-hidden': 'true' }, hm.colours.map((c) => h('i', { style: 'background:' + GP.toHex(c) })));
+  }
+  function driverRow(d) {
+    const team = GP.teamOf(state.doc, d.teamID);
+    return h('button', { class: 'item', onclick: () => driverSheet(d.id) },
+      h('span', { class: 'stripe', style: 'background:' + GP.toHex(team ? team.hex : 0x888888) }),
+      h('span', { class: 'num', text: d.number }), h('span', { class: 'tla', text: d.tla }),
+      h('span', { class: 'who' }, h('b', { text: d.name }), h('span', { text: team ? team.name : 'Sem equipe' })),
+      h('span', { class: 'tail' }, d.entered ? null : h('span', { class: 'badge', text: 'FORA' }), helmetNode(d.helmet)));
+  }
+  const SORTS = [['', 'Ordem do arquivo'], ['number', 'Número'], ['name', 'Nome'], ['team', 'Equipe'], ...GP.STATS.map((k) => [k, GP.STAT_LABEL[k]])];
+  // pilotos que aparecem agora (busca + equipe + ordem); o "Em lote" age sobre estes
+  function shownDrivers() {
+    const q = norm(state.q), doc = state.doc;
+    const rows = doc.drivers.filter((d) => (!state.teamF || d.teamID === state.teamF) && (!q || norm(d.name + ' ' + d.tla + ' ' + d.number + ' ' + GP.teamName(doc, d.teamID)).includes(q)));
+    const k = state.sortK;
+    if (k) {
+      const val = (d) => (k === 'name' ? norm(d.name) : k === 'team' ? norm(GP.teamName(doc, d.teamID)) : k === 'number' ? d.number : d.stats[k]);
+      rows.sort((x, y) => { const a1 = val(x), b1 = val(y); const c = typeof a1 === 'string' ? a1.localeCompare(b1) : a1 - b1; return state.desc ? -c : c; });
+    }
+    return rows;
+  }
+  function driversPanel() {
+    const list = h('div', { class: 'list' }); const count = h('div', { class: 'count' });
+    const bulkBtn = h('button', { class: 'btn small', text: 'Em lote…', onclick: () => bulkSheet(shownDrivers()) });
+    const fill = () => {
+      const rows = shownDrivers();
+      list.replaceChildren(...rows.map(driverRow));
+      count.textContent = rows.length === state.doc.drivers.length ? `${rows.length} pilotos` : `${rows.length} de ${state.doc.drivers.length} pilotos`;
+      bulkBtn.disabled = !rows.length;
+      if (!rows.length) list.append(h('div', { class: 'banner info', text: state.doc.drivers.length ? 'Nenhum piloto encontrado.' : 'Ainda não há pilotos. Toque em "Novo".' }));
+    };
+    const search = h('input', { class: 'search', type: 'search', id: 'q', placeholder: 'Buscar piloto, sigla, número ou equipe', value: state.q, 'aria-label': 'Buscar piloto', oninput: (e) => { state.q = e.target.value; fill(); } });
+    const teamSel = h('select', { id: 'flt-team', 'aria-label': 'Filtrar por equipe', onchange: (e) => { state.teamF = e.target.value; fill(); } },
+      h('option', { value: '', text: 'Todas as equipes' }), state.doc.teams.map((t) => h('option', { value: t.id, text: t.name, selected: state.teamF === t.id })));
+    const sortSel = h('select', { id: 'flt-sort', 'aria-label': 'Ordenar por', onchange: (e) => { state.sortK = e.target.value; fill(); } }, SORTS.map(([k, l]) => h('option', { value: k, text: l, selected: state.sortK === k })));
+    const dirBtn = h('button', { class: 'btn small ghost', id: 'flt-dir', 'aria-label': 'Inverter a ordem', text: state.desc ? '↓ maior primeiro' : '↑ menor primeiro', onclick: () => { state.desc = !state.desc; dirBtn.textContent = state.desc ? '↓ maior primeiro' : '↑ menor primeiro'; fill(); } });
+    fill();
+    return [h('div', { class: 'panel-head' }, search, h('button', { class: 'btn primary', onclick: () => driverSheet(null), disabled: !state.doc.teams.length, text: 'Novo' })),
+      h('div', { class: 'filters' }, teamSel, sortSel, dirBtn, bulkBtn), count, list];
+  }
+  // edição em lote sobre os pilotos que estão aparecendo na lista
+  function bulkSheet(rows) {
+    const ids = rows.map((d) => d.id), doc = state.doc;
+    const err = h('div', { class: 'err', role: 'alert' });
+    let type = 'stats';
+    const box = h('div', { class: 'stack' });
+    const keyCbs = GP.STATS.map((k) => ({ k, cb: h('input', { type: 'checkbox', id: 'bk-' + k, checked: k === 'pace' }) }));
+    const modeSel = h('select', { id: 'b-mode', 'aria-label': 'Como alterar' }, h('option', { value: 'set', text: 'Definir para o valor' }), h('option', { value: 'add', text: 'Somar (use negativo para diminuir)' }));
+    const valIn = h('input', { type: 'number', id: 'b-val', value: '80', inputmode: 'numeric' });
+    const teamSel = h('select', { id: 'b-team', 'aria-label': 'Equipe de destino' }, doc.teams.map((t) => h('option', { value: t.id, text: t.name })));
+    const enSel = h('select', { id: 'b-en', 'aria-label': 'Situação' }, h('option', { value: '1', text: 'Inscritos' }), h('option', { value: '0', text: 'Fora (não inscritos)' }));
+    const patSel = h('select', { id: 'b-pat', 'aria-label': 'Padrão do capacete' }, h('option', { value: '', text: 'Sem capacete (remover)' }), Object.keys(GP.HELMET_COLOURS).map((p) => h('option', { value: p, text: `${p} (${GP.HELMET_COLOURS[p]} cor${GP.HELMET_COLOURS[p] > 1 ? 'es' : ''})`, selected: p === 'stripe' })));
+    const fromTeam = h('input', { type: 'checkbox', id: 'b-fromteam', checked: true });
+    const colWrap = h('div', { class: 'colors' });
+    let hcols = [0xffffff, 0x111111, 0xd8402a, 0x2f5bea];
+    const drawCols = () => { colWrap.replaceChildren(); if (fromTeam.checked || !patSel.value) return; for (let i = 0; i < GP.HELMET_COLOURS[patSel.value]; i++) colWrap.append(h('input', { type: 'color', value: GP.toHex(hcols[i]).toLowerCase(), 'aria-label': `Cor ${i + 1}`, oninput: (e) => { hcols[i] = GP.fromHex(e.target.value); } })); };
+    patSel.addEventListener('change', drawCols); fromTeam.addEventListener('change', drawCols);
+    const startIn = h('input', { type: 'number', id: 'b-start', value: '1', min: '1', max: String(GP.NUM_MAX), inputmode: 'numeric' });
+    const drawBox = () => {
+      err.textContent = '';
+      const f = (label, node, id) => h('div', { class: 'field' }, h('label', { for: id, text: label }), node);
+      if (type === 'stats') box.replaceChildren(h('div', { class: 'field' }, h('div', { class: 'legend', text: 'Atributos' }), ...keyCbs.map(({ k, cb }) => h('label', { class: 'choice' }, cb, h('span', { text: GP.STAT_LABEL[k] })))), f('Como', modeSel, 'b-mode'), f('Valor', valIn, 'b-val'));
+      else if (type === 'team') box.replaceChildren(f('Mover para a equipe', teamSel, 'b-team'));
+      else if (type === 'entered') box.replaceChildren(f('Marcar como', enSel, 'b-en'));
+      else if (type === 'helmet') { box.replaceChildren(f('Padrão', patSel, 'b-pat'), h('label', { class: 'choice' }, fromTeam, h('span', { text: 'Usar as cores da equipe de cada piloto' })), colWrap); drawCols(); }
+      else if (type === 'renumber') box.replaceChildren(f('Primeiro número', startIn, 'b-start'), h('p', { class: 'muted', style: 'margin-left:0', text: 'Segue a ordem da lista que está aparecendo. Números usados por pilotos fora desta lista são pulados.' }));
+      else box.replaceChildren(h('p', { class: 'muted', style: 'margin-left:0', text: 'Troca os números repetidos do grid inteiro (o primeiro de cada número fica) por números livres a partir de 100. O jogo também faz isso sozinho ao importar.' }));
+    };
+    const typeSel = h('select', { id: 'b-type', 'aria-label': 'O que fazer', onchange: (e) => { type = e.target.value; drawBox(); } },
+      [['stats', 'Mudar atributos'], ['team', 'Mudar de equipe'], ['entered', 'Inscrito / fora'], ['helmet', 'Capacete'], ['renumber', 'Renumerar em sequência'], ['fixdups', 'Corrigir números repetidos']].map(([v, l]) => h('option', { value: v, text: l })));
+    const opNow = () => (type === 'stats' ? { type, keys: keyCbs.filter((x) => x.cb.checked).map((x) => x.k), mode: modeSel.value, value: valIn.value }
+      : type === 'team' ? { type, teamID: teamSel.value } : type === 'entered' ? { type, value: enSel.value === '1' } : type === 'helmet' ? { type, pattern: patSel.value, fromTeam: fromTeam.checked, colours: hcols.slice(0, GP.HELMET_COLOURS[patSel.value] || 0) } : type === 'renumber' ? { type, start: startIn.value } : { type });
+    const go = h('button', { class: 'btn primary', text: 'Aplicar' });
+    go.addEventListener('click', () => {
+      const op = opNow();
+      try { GP.bulkDrivers(GP.clone(doc), ids, op); GP.takeNotes(); } catch (e) { GP.takeNotes(); err.textContent = e.message; return; }
+      closeSheet(); apply((d) => GP.bulkDrivers(d, ids, op));
+    });
+    drawBox();
+    openSheet('Editar em lote', [h('p', { class: 'muted', style: 'margin-left:0', text: type === 'fixdups' ? '' : `Afeta os ${ids.length} piloto(s) que estão aparecendo na lista agora (use a busca e o filtro de equipe para escolher quais). Dá para desfazer.` }), h('div', { class: 'field' }, h('label', { for: 'b-type', text: 'O que fazer' }), typeSel), box, err],
+      [h('button', { class: 'btn', onclick: closeSheet, text: 'Cancelar' }), go]);
+  }
+
+  function driverSheet(id) {
+    const doc = state.doc;
+    const ex = id ? doc.drivers.find((d) => d.id === id) : null;
+    const used = new Set(doc.drivers.map((d) => d.number));
+    const freeNum = (() => { let n = 1; while (used.has(n)) n++; return n; })();
+    const v = ex ? GP.clone(ex) : { name: '', tla: '', number: freeNum, teamID: doc.teams[0].id, entered: true, stats: Object.fromEntries(GP.STATS.map((k) => [k, 80])) };
+    const f = {};
+    f.name = h('input', { type: 'text', id: 'f-name', name: 'name', value: v.name, maxlength: '60', autocomplete: 'off' });
+    f.tla = h('input', { type: 'text', id: 'f-tla', name: 'tla', value: v.tla, maxlength: '3', autocomplete: 'off', autocapitalize: 'characters' });
+    f.num = h('input', { type: 'number', id: 'f-num', value: v.number, min: '1', max: String(GP.NUM_MAX), inputmode: 'numeric' });
+    f.team = h('select', { id: 'f-team' }, doc.teams.map((t) => h('option', { value: t.id, selected: t.id === v.teamID, text: t.name })));
+    f.entered = h('input', { type: 'checkbox', id: 'f-entered', checked: v.entered });
+    if (!ex) f.name.addEventListener('input', () => { if (!f.tla.dataset.touched) f.tla.value = f.name.value.replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase(); });
+    f.tla.addEventListener('input', () => { f.tla.dataset.touched = '1'; });
+    const statNodes = GP.STATS.map((k) => {
+      const xs = GP.excessOf(v.stats, GP.STATS)[GP.STATS.indexOf(k)];
+      const show = (val) => (Number(val) === 99 && xs ? `99 +${xs}` : String(val));
+      const out = h('output', { for: 'f-st-' + k, text: show(v.stats[k]) });
+      f[k] = h('input', { type: 'range', id: 'f-st-' + k, min: String(GP.STAT_MIN), max: String(GP.STAT_MAX), value: v.stats[k], oninput: (e) => { out.textContent = show(e.target.value); } });
+      return h('div', { class: 'stat' }, h('label', { for: 'f-st-' + k, text: GP.STAT_LABEL[k] }), f[k], out);
+    });
+    // capacete
+    let helmet = v.helmet ? { pattern: v.helmet.pattern, colours: [...v.helmet.colours] } : null;
+    const helmWrap = h('div', { class: 'colors' });
+    const drawColours = () => {
+      helmWrap.replaceChildren();
+      if (!helmet) return;
+      helmet.colours.forEach((c, i) => helmWrap.append(h('input', { type: 'color', value: GP.toHex(c).toLowerCase(), 'aria-label': `Cor ${i + 1} do capacete`, oninput: (e) => { helmet.colours[i] = GP.fromHex(e.target.value); } })));
+    };
+    f.pat = h('select', { id: 'f-pat' }, h('option', { value: '', text: 'Sem capacete', selected: !helmet }),
+      Object.keys(GP.HELMET_COLOURS).map((p) => h('option', { value: p, selected: helmet && helmet.pattern === p, text: p })));
+    f.pat.addEventListener('change', () => {
+      if (!f.pat.value) helmet = null;
+      else {
+        const n = GP.HELMET_COLOURS[f.pat.value], old = helmet ? helmet.colours : [];
+        helmet = { pattern: f.pat.value, colours: Array.from({ length: n }, (_, i) => (i < old.length ? old[i] : (old[0] !== undefined ? old[0] : 0xffffff))) };
+      }
+      drawColours();
+    });
+    drawColours();
+    const err = h('div', { class: 'err', role: 'alert' });
+    const save = () => {
+      const draft = { name: f.name.value, tla: f.tla.value, number: f.num.value, teamID: f.team.value, entered: f.entered.checked, stats: Object.fromEntries(GP.STATS.map((k) => [k, f[k].value])), helmet };
+      try { GP.saveDriver(GP.clone(state.doc), draft, id); GP.takeNotes(); } catch (e) { GP.takeNotes(); err.textContent = e.message; return; }
+      closeSheet(); apply((d) => GP.saveDriver(d, draft, id));
+    };
+    const foot = [h('button', { class: 'btn', onclick: closeSheet, text: 'Cancelar' })];
+    if (ex) foot.push(h('button', { class: 'btn danger', text: 'Apagar', onclick: async () => {
+      if (await confirmSheet('Apagar piloto?', `"${ex.name}" será removido do grid.`, 'Apagar', true)) apply((d) => GP.deleteDriver(d, id)); else driverSheet(id);
+    } }));
+    foot.push(h('button', { class: 'btn primary', onclick: save, text: 'Salvar' }));
+    openSheet(ex ? 'Editar piloto' : 'Novo piloto', [
+      h('div', { class: 'field' }, h('label', { for: 'f-name', text: 'Nome' }), f.name),
+      h('div', { class: 'two' },
+        h('div', { class: 'field' }, h('label', { for: 'f-tla', text: 'Sigla (2 ou 3 caracteres)' }), f.tla),
+        h('div', { class: 'field' }, h('label', { for: 'f-num', text: 'Número' }), f.num)),
+      !ex && used.has(Number(v.number)) ? null : null,
+      h('div', { class: 'field' }, h('label', { for: 'f-team', text: 'Equipe' }), f.team),
+      h('label', { class: 'switch' }, f.entered, 'Inscrito na corrida'),
+      h('div', { class: 'stack' }, h('div', { class: 'legend', text: 'Atributos' }), statNodes),
+      h('div', { class: 'field' }, h('label', { for: 'f-pat', text: 'Capacete' }), f.pat, helmWrap),
+      err,
+    ], foot);
+  }
+
+  // --------------------------------------------------------------- equipes ---
+  function teamsPanel() {
+    const list = h('div', { class: 'list' }, state.doc.teams.map((t) => {
+      const n = state.doc.drivers.filter((d) => d.teamID === t.id).length;
+      return h('button', { class: 'item team-item', onclick: () => teamSheet(t.id) },
+        h('span', { class: 'swatch', style: 'background:' + GP.toHex(t.hex), 'aria-hidden': 'true' }),
+        h('span', { class: 'who' }, h('b', { text: t.name }), h('span', { text: `${n} piloto${n === 1 ? '' : 's'}` })),
+        h('span', { class: 'cardnums', text: `${t.car.power} / ${t.car.downforce}`, title: 'potência / downforce' }));
+    }));
+    return [h('div', { class: 'panel-head' }, h('div', { class: 'count', style: 'flex:1;align-self:center;margin:0', text: `${state.doc.teams.length} equipes · carro: potência / downforce` }), h('button', { class: 'btn primary', onclick: () => teamSheet(null), text: 'Nova' })), list];
+  }
+  function teamSheet(id) {
+    const doc = state.doc; const ex = id ? doc.teams.find((t) => t.id === id) : null;
+    const v = ex ? GP.clone(ex) : { name: '', hex: 0x336699, car: { power: 80, downforce: 80 } };
+    const f = {};
+    f.name = h('input', { type: 'text', id: 't-name', value: v.name, maxlength: '60', autocomplete: 'off' });
+    f.hex = h('input', { type: 'color', id: 't-hex', value: GP.toHex(v.hex).toLowerCase() });
+    const opt = (key, label) => {
+      const on = h('input', { type: 'checkbox', id: 't-' + key + '-on', checked: key in v });
+      const col = h('input', { type: 'color', id: 't-' + key, value: GP.toHex(v[key] !== undefined ? v[key] : v.hex).toLowerCase(), disabled: !(key in v) });
+      on.addEventListener('change', () => { col.disabled = !on.checked; });
+      f[key] = { on, col };
+      return h('div', { class: 'field' }, h('div', { class: 'legend', text: label }), h('div', { class: 'opt' }, on, h('label', { for: 't-' + key + '-on', text: 'Usar' }), col));
+    };
+    f.seed = h('input', { type: 'text', id: 't-seed', value: v.seed || '', maxlength: '40', autocomplete: 'off', autocapitalize: 'none' });
+    const stat = (key, label) => {
+      const xs = GP.excessOf(v.car, GP.CAR)[GP.CAR.indexOf(key)];
+      const show = (val) => (Number(val) === 99 && xs ? `99 +${xs}` : String(val));
+      const out = h('output', { text: show(v.car[key]) });
+      f[key] = h('input', { type: 'range', id: 't-' + key, min: String(GP.STAT_MIN), max: String(GP.STAT_MAX), value: v.car[key], oninput: (e) => { out.textContent = show(e.target.value); } });
+      return h('div', { class: 'stat' }, h('label', { for: 't-' + key, text: label }), f[key], out);
+    };
+    const err = h('div', { class: 'err', role: 'alert' });
+    const draftOf = () => ({ name: f.name.value, hex: f.hex.value, accent: f.accent.on.checked ? f.accent.col.value : '', brand: f.brand.on.checked ? f.brand.col.value : '', seed: f.seed.value, power: f.power.value, downforce: f.downforce.value });
+    const save = () => { const draft = draftOf(); try { GP.saveTeam(GP.clone(state.doc), draft, id); GP.takeNotes(); } catch (e) { GP.takeNotes(); err.textContent = e.message; return; } closeSheet(); apply((d) => GP.saveTeam(d, draft, id)); };
+    const foot = [h('button', { class: 'btn', onclick: closeSheet, text: 'Cancelar' })];
+    if (ex) foot.push(h('button', { class: 'btn danger', text: 'Apagar', onclick: () => deleteTeamFlow(ex) }));
+    foot.push(h('button', { class: 'btn primary', onclick: save, text: 'Salvar' }));
+    openSheet(ex ? 'Editar equipe' : 'Nova equipe', [
+      h('div', { class: 'field' }, h('label', { for: 't-name', text: 'Nome' }), f.name),
+      h('div', { class: 'field' }, h('label', { for: 't-hex', text: 'Cor principal' }), h('div', { class: 'opt' }, f.hex)),
+      opt('accent', 'Cor de destaque (opcional)'), opt('brand', 'Cor da marca (opcional)'),
+      h('div', { class: 'field' }, h('label', { for: 't-seed', text: 'Seed (opcional, não sei o que o jogo faz com ele)' }), f.seed),
+      h('div', { class: 'stack' }, h('div', { class: 'legend', text: 'Carro' }), stat('power', 'Potência'), stat('downforce', 'Downforce')),
+      err,
+    ], foot);
+  }
+  function deleteTeamFlow(team) {
+    const members = state.doc.drivers.filter((d) => d.teamID === team.id);
+    if (!members.length) {
+      confirmSheet('Apagar equipe?', `"${team.name}" não tem pilotos e será removida.`, 'Apagar', true).then((y) => { if (y) apply((d) => GP.deleteTeam(d, team.id)); else teamSheet(team.id); });
+      return;
+    }
+    const others = state.doc.teams.filter((t) => t.id !== team.id);
+    let mode = others.length ? 'move' : 'with';
+    const sel = h('select', { id: 'dt-to', 'aria-label': 'Equipe de destino' }, others.map((t) => h('option', { value: t.id, text: t.name })));
+    const radios = [];
+    const mk = (val, text, extra) => {
+      const r = h('input', { type: 'radio', name: 'dt-mode', value: val, checked: mode === val, disabled: val === 'move' && !others.length, onchange: () => { mode = val; } }); radios.push(r);
+      return h('label', { class: 'choice' }, r, h('span', {}, text, extra ? h('div', {}, extra) : null));
+    };
+    openSheet('Apagar equipe', [
+      h('p', { text: `"${team.name}" tem ${members.length} piloto(s): ${members.map((d) => d.name).join(', ')}.` }),
+      mk('move', 'Mover os pilotos para outra equipe', sel), mk('with', 'Apagar a equipe e os pilotos'),
+    ], [
+      h('button', { class: 'btn', onclick: () => teamSheet(team.id), text: 'Voltar' }),
+      h('button', { class: 'btn danger', text: 'Apagar', onclick: () => { closeSheet(); apply((d) => GP.deleteTeam(d, team.id, mode === 'move' ? { moveTo: sel.value } : { withDrivers: true })); } }),
+    ]);
+  }
+
+  // ------------------------------------------------------------- circuitos ---
+  function circuitRow(c) {
+    const on = state.sel.has(c.id);
+    const cb = h('input', { type: 'checkbox', checked: on, 'aria-label': 'Selecionar ' + c.name, onchange: (e) => { e.target.checked ? state.sel.add(c.id) : state.sel.delete(c.id); render(); } });
+    return h('label', { class: 'item circ' }, cb,
+      h('span', { class: 'who' }, h('b', { text: c.name }), h('span', { text: [c.city, typeof c.laps === 'number' ? c.laps + (c.laps === 1 ? ' volta' : ' voltas') : ''].filter(Boolean).join(' · ') })),
+      h('span', { class: 'cm', text: fmtKm(c.lengthMeters) }));
+  }
+  function circuitsPanel() {
+    const doc = state.doc, mem = GP.membership(doc);
+    const groups = (doc.folders || []).map((fo) => ({ fo, items: fo.circuits.map((i) => doc.circuits[i]) }));
+    const loose = doc.circuits.filter((_, i) => !mem.has(i));
+    const out = [h('div', { class: 'count', text: `${doc.circuits.length} circuitos · ${(doc.folders || []).length} pastas` })];
+    for (const g of groups) {
+      out.push(h('div', { class: 'group-h' }, h('h2', { text: `${g.fo.name} (${g.items.length})` }),
+        h('div', { class: 'row-actions' },
+          h('button', { class: 'btn small ghost', text: 'Renomear', onclick: async () => { const n = await textSheet('Renomear pasta', 'Novo nome', g.fo.name, 'Renomear'); if (n) apply((d) => GP.renameFolder(d, g.fo.name, n)); } }),
+          h('button', { class: 'btn small ghost danger', text: 'Apagar', onclick: () => deleteFolderFlow(g.fo) }))));
+      out.push(h('div', { class: 'list' }, g.items.length ? g.items.map(circuitRow) : h('div', { class: 'banner info', text: 'Pasta vazia.' })));
+    }
+    if (loose.length) {
+      out.push(h('div', { class: 'group-h' }, h('h2', { text: `Soltos (${loose.length})` })));
+      out.push(h('div', { class: 'list' }, loose.map(circuitRow)));
+    }
+    if (!doc.circuits.length) out.push(h('div', { class: 'banner info', text: 'Não há circuitos neste arquivo.' }));
+    return out;
+  }
+  function deleteFolderFlow(fo) {
+    let withC = false;
+    const cb = h('input', { type: 'checkbox', id: 'df-c', onchange: (e) => { withC = e.target.checked; } });
+    openSheet('Apagar pasta', [
+      h('p', { text: `A pasta "${fo.name}" tem ${fo.circuits.length} circuito(s). Por padrão eles ficam soltos.` }),
+      h('label', { class: 'choice' }, cb, h('span', { text: 'Apagar também os circuitos da pasta' })),
+    ], [
+      h('button', { class: 'btn', onclick: closeSheet, text: 'Cancelar' }),
+      h('button', { class: 'btn danger', text: 'Apagar', onclick: () => { closeSheet(); apply((d) => GP.deleteFolder(d, fo.name, withC)); } }),
+    ]);
+  }
+  function actionBar() {
+    const n = state.sel.size;
+    if (isGrid() || !n) return null;
+    const b = (text, fn, cls) => h('button', { class: 'btn small ' + (cls || ''), onclick: fn, text });
+    return h('div', { class: 'actionbar' }, h('div', { class: 'inner' },
+      h('span', { class: 'sel', text: `${n} selecionado${n === 1 ? '' : 's'}` }),
+      b('Mover para…', moveFlow), b('Nova pasta…', newFolderFlow), b('Tirar da pasta', () => doneSel(apply((d) => GP.moveCircuits(d, selIdx(), null)))),
+      b('Extrair', () => { const doc = GP.extractCircuits(state.doc, selIdx()); saveDoc(doc, stem() + '_extraido', false); }),
+      b('Apagar', deleteCircuitsFlow, 'danger'), b('Limpar', () => { state.sel.clear(); render(); }, 'ghost')));
+  }
+  // Depois de mover/criar pasta a seleção acaba, para a próxima ação não atingir os mesmos circuitos.
+  function doneSel(ok) { if (ok) { state.sel.clear(); render(); } return ok; }
+  function moveFlow() {
+    const folders = state.doc.folders || [];
+    if (!folders.length) return newFolderFlow();
+    let pick = folders[0].name;
+    openSheet('Mover para qual pasta?', folders.map((fo, i) => h('label', { class: 'choice' },
+      h('input', { type: 'radio', name: 'mv', checked: i === 0, onchange: () => { pick = fo.name; } }), h('span', { text: `${fo.name} (${fo.circuits.length})` }))), [
+      h('button', { class: 'btn', onclick: closeSheet, text: 'Cancelar' }),
+      h('button', { class: 'btn primary', text: 'Mover', onclick: () => { closeSheet(); doneSel(apply((d) => GP.moveCircuits(d, selIdx(), pick))); } }),
+    ]);
+  }
+  async function newFolderFlow() {
+    const n = await textSheet('Nova pasta', 'Nome da pasta', '', 'Criar');
+    if (n) doneSel(apply((d) => GP.createFolder(d, n, selIdx())));
+  }
+  async function deleteCircuitsFlow() {
+    const names = selIdx().map((i) => state.doc.circuits[i].name);
+    if (await confirmSheet('Apagar circuitos?', `${names.length === 1 ? '"' + names[0] + '"' : names.length + ' circuitos'} será(ão) removido(s) do arquivo.`, 'Apagar', true)) apply((d) => GP.deleteCircuits(d, selIdx(), false));
+  }
+
+  // --------------------------------------------------------------- arquivo ---
+  function filePanel() {
+    const doc = state.doc;
+    const nameInput = h('input', { type: 'text', id: 'out-name', value: stem() + (state.sample ? '' : '_editado'), maxlength: '80', autocomplete: 'off' });
+    const nodes = [];
+    if (isGrid()) {
+      nodes.push(h('div', { class: 'card' }, h('h3', { text: 'Grid' }),
+        h('div', { class: 'field' }, h('label', { for: 'g-name', text: 'Nome do grid' }),
+          h('input', { type: 'text', id: 'g-name', value: doc.name, maxlength: '60', onchange: (e) => { const v = e.target.value; apply((d) => { if (!v.trim()) throw new GP.GPError('O nome do grid não pode ficar vazio.'); d.name = v.trim(); return 'Nome do grid alterado.'; }); } })),
+        h('dl', { class: 'kv', style: 'margin-top:10px' }, h('dt', { text: 'Equipes' }), h('dd', { text: doc.teams.length }), h('dt', { text: 'Pilotos' }), h('dd', { text: doc.drivers.length }), h('dt', { text: 'Inscritos' }), h('dd', { text: doc.drivers.filter((d) => d.entered).length }))));
+    } else {
+      nodes.push(h('div', { class: 'card' }, h('h3', { text: 'Coleção de circuitos' }),
+        h('dl', { class: 'kv' }, h('dt', { text: 'Circuitos' }), h('dd', { text: doc.circuits.length }), h('dt', { text: 'Pastas' }), h('dd', { text: (doc.folders || []).length }))));
+    }
+    const ns = GP.notes(doc);
+    if (ns.length) nodes.push(h('div', { class: 'banner' }, ns.map((t) => h('div', { text: t }))));
+    const mergeIn = h('input', { type: 'file', id: 'merge-in', multiple: true, hidden: true, onchange: (e) => { const fs = [...e.target.files]; e.target.value = ''; if (fs.length) mergeFiles(fs); } });
+    const newIn = h('input', { type: 'file', id: 'mergenew-in', multiple: true, hidden: true, onchange: (e) => { const fs = [...e.target.files]; e.target.value = ''; if (fs.length) mergeNew(fs); } });
+    nodes.push(h('div', { class: 'card stack' }, h('h3', { text: 'Juntar vários arquivos em um novo' }),
+      h('p', { text: 'Escolha 2 ou mais arquivos do mesmo tipo (grids com grids, circuitos com circuitos). Cria um arquivo novo e deixa de lado o que está aberto. Os originais não são alterados.' }),
+      newIn, h('button', { class: 'btn', onclick: () => newIn.click(), text: 'Escolher 2 ou mais arquivos' })));
+    if (isGrid()) {
+      nodes.push(h('div', { class: 'card stack' }, h('h3', { text: 'Verificar o grid' }),
+        h('p', { text: 'Procura números e siglas repetidos, equipes sem piloto, atributos estranhos e pilotos sem capacete.' }),
+        h('button', { class: 'btn', onclick: auditSheet, text: 'Verificar agora' })));
+      nodes.push(h('div', { class: 'card stack' }, h('h3', { text: 'Exportar como lista (planilha)' }),
+        h('p', { text: 'Gera o texto da lista de pilotos ou de equipes, no mesmo formato que "Importar listas" lê. Dá para copiar, editar em outro app e colar de volta. O excesso acima de 99 não vai na lista.' }),
+        h('div', { class: 'row-actions' }, h('button', { class: 'btn', onclick: () => csvSheet('drivers'), text: 'Lista de pilotos' }), h('button', { class: 'btn', onclick: () => csvSheet('teams'), text: 'Lista de equipes' }))));
+    }
+    if (isGrid()) {
+      nodes.push(h('div', { class: 'card stack' }, h('h3', { text: 'Importar listas' }),
+        h('p', { text: 'Cole uma lista (de uma planilha ou de um texto) e crie vários pilotos ou equipes de uma vez. Se os pilotos usarem equipes novas, importe as equipes primeiro ou marque "Criar equipes que faltam".' }),
+        h('div', { class: 'row-actions' }, h('button', { class: 'btn', onclick: importSheet, text: 'Colar lista de pilotos' }), h('button', { class: 'btn', onclick: importTeamsSheet, text: 'Colar lista de equipes' }))));
+      const cpIn = h('input', { type: 'file', id: 'copy-in', hidden: true, onchange: (e) => { const f = e.target.files[0]; e.target.value = ''; if (f) copyFromFile(f); } });
+      nodes.push(h('div', { class: 'card stack' }, h('h3', { text: 'Copiar pilotos de outro grid' }),
+        h('p', { text: 'Abre outro grid só para escolher quais pilotos ou equipes trazer para este.' }),
+        cpIn, h('button', { class: 'btn', onclick: () => cpIn.click(), text: 'Escolher o grid de origem' })));
+    }
+    nodes.push(h('div', { class: 'card stack' }, h('h3', { text: 'Juntar outro arquivo' }),
+      h('p', { text: isGrid() ? 'Acrescenta TODAS as equipes e pilotos do outro arquivo ao final deste.' : 'Acrescenta os circuitos e as pastas do outro arquivo. Pastas com o mesmo nome se unem.' }),
+      mergeIn, h('button', { class: 'btn', onclick: () => mergeIn.click(), text: 'Escolher arquivo(s) para juntar' })));
+    const jsonCard = h('div', { class: 'card stack' }, h('h3', { text: 'Alternativa: como JSON' }),
+      h('p', { text: 'Texto puro do arquivo, sem compactar. Cole num app de notas e salve com o nome terminando em ".geoprix", ou baixe como .json e renomeie. O Geoprix já abriu JSON renomeado assim para você (vindo de outra ferramenta); eu não consegui testar isso no jogo, então se der erro use o botão "Salvar arquivo .geoprix" acima.' }),
+      h('div', { class: 'row-actions' },
+        h('button', { class: 'btn', text: 'Copiar JSON', onclick: async () => { const t = GP.toJson(state.doc); try { await navigator.clipboard.writeText(t); toast('JSON copiado.'); } catch (e) { jsonTa.hidden = false; jsonTa.value = t; jsonTa.focus(); jsonTa.select(); toast('Selecionei o texto: use Copiar do seu teclado.'); } } }),
+        h('button', { class: 'btn', text: 'Baixar .json', onclick: async () => { const problems = GP.check(state.doc); if (problems.length) return toast(problems[0], 'err'); const dl = await cap('downloads'); if (!dl) return toast('Este lugar não baixa arquivos. Use Copiar JSON.', 'err'); try { await dl.save({ filename: (nameInput.value.trim() || stem()) + '.json', data: new TextEncoder().encode(GP.toJson(state.doc)) }); toast('Salvo como .json. Renomeie para .geoprix.'); } catch (e) { toast(e && e.code === 'declined' ? 'Cancelado.' : 'Não consegui baixar. Use Copiar JSON.', 'err'); } } })));
+    const jsonTa = h('textarea', { class: 'jsonout', readonly: true, hidden: true, rows: '8', 'aria-label': 'JSON' }); jsonCard.append(jsonTa);
+    nodes.push(h('div', { class: 'card stack' }, h('h3', { text: 'Salvar' }),
+      h('div', { class: 'field' }, h('label', { for: 'out-name', text: 'Nome do arquivo' }), nameInput),
+      h('button', { class: 'btn primary', text: 'Salvar arquivo .geoprix', onclick: () => saveDoc(state.doc, nameInput.value.trim() || stem(), true) }),
+      h('p', { text: 'O arquivo é recompactado e relido antes de salvar. Os originais nunca são alterados: o resultado é sempre um arquivo novo. Se o seu navegador só aceitar salvar com ".txt" no final, renomeie para tirar o ".txt".' })));
+    nodes.push(jsonCard);
+    if (state.fallback) {
+      const ta = h('textarea', { class: 'out', readonly: true, 'aria-label': 'Arquivo em texto', onfocus: (e) => e.target.select() }); ta.value = state.fallback.text;
+      nodes.push(h('div', { class: 'card stack' }, h('h3', { text: 'Se não conseguir salvar' }),
+        h('p', { text: `Copie este texto e cole no chat com o Claude, pedindo para transformar em "${state.fallback.name}.geoprix". É o mesmo arquivo, em base64. Ou, mais simples, use "Alternativa: como JSON" logo acima.` }), ta,
+        h('button', { class: 'btn', text: 'Copiar como texto', onclick: async () => { try { await navigator.clipboard.writeText(state.fallback.text); toast('Copiado.'); } catch (e) { ta.focus(); ta.select(); toast('Selecionei o texto: use Copiar do seu teclado.'); } } })));
+    }
+    return nodes;
+  }
+
+  // --------------------------------------------------------------- render ----
+  function render() {
+    const doc = state.doc, grid = isGrid();
+    const tabs = grid ? [['drivers', 'Pilotos'], ['teams', 'Equipes'], ['file', 'Arquivo']] : [['circuits', 'Circuitos'], ['file', 'Arquivo']];
+    if (!tabs.some(([k]) => k === state.tab)) state.tab = tabs[0][0];
+    const fileIn = h('input', { type: 'file', id: 'open-in', hidden: true, onchange: (e) => { const f = e.target.files[0]; e.target.value = ''; if (f) openFile(f); } });
+    const bar = h('div', { class: 'bar' },
+      h('div', { class: 'bar-row' },
+        h('div', { style: 'min-width:0' }, h('div', { class: 'brand', text: 'Geoprix Editor' }),
+          h('div', { class: 'fname' }, dirty() ? h('span', { class: 'dot', title: 'Alterações não salvas' }) : null, h('span', { text: state.sample ? 'Exemplo' : state.fileName + (dirty() ? ' · não salvo' : '') }))),
+        h('div', { class: 'row-actions' }, fileIn,
+          h('button', { class: 'btn small ghost', onclick: undo, disabled: !state.history.length, text: 'Desfazer' }),
+          h('button', { class: 'btn small', onclick: () => fileIn.click(), text: 'Abrir' }))),
+      h('div', { class: 'tabs', role: 'tablist' }, tabs.map(([k, label]) => h('button', { class: 'tab', role: 'tab', 'aria-selected': String(state.tab === k), onclick: () => { state.tab = k; render(); window.scrollTo(0, 0); }, text: label }))));
+    const body = [];
+    if (state.sample) body.push(h('div', { class: 'banner info', text: 'Isto é um grid de exemplo, só para mostrar como funciona. Toque em "Abrir" e escolha o seu arquivo .geoprix. Para juntar vários arquivos de uma vez, use a aba Arquivo.' }));
+    const panel = state.tab === 'drivers' ? driversPanel() : state.tab === 'teams' ? teamsPanel() : state.tab === 'circuits' ? circuitsPanel() : filePanel();
+    const scroll = window.scrollY;
+    const hadFocus = document.activeElement && document.activeElement.id === 'q';
+    app.replaceChildren(bar, ...body, ...panel);
+    document.querySelectorAll('.actionbar').forEach((n) => n.remove());
+    const ab = actionBar(); if (ab) document.body.append(ab);
+    document.body.classList.toggle('has-actionbar', !!ab);
+    window.scrollTo(0, scroll);
+    if (hadFocus) { const q = document.getElementById('q'); if (q) q.focus(); }
+  }
+  window.addEventListener('beforeunload', (e) => { if (dirty()) { e.preventDefault(); e.returnValue = ''; } });
+  render();
+  })();
+
+</script>
+
+</body></html>
